@@ -3,7 +3,9 @@
   import Randomizer from './lib/Randomizer.svelte';
   import RecipeList from './lib/RecipeList.svelte';
   import RecipeForm from './lib/RecipeForm.svelte';
+  import Lists from './lib/Lists.svelte';
   import Admin from './lib/Admin.svelte';
+  import AdminHouseholds from './lib/AdminHouseholds.svelte';
 
   let user = $state(null);
   let checking = $state(true);
@@ -13,6 +15,7 @@
     { id: 'roll', icon: '🎲', label: 'Würfeln' },
     { id: 'list', icon: '📖', label: 'Rezepte' },
     { id: 'add', icon: '➕', label: 'Neu' },
+    { id: 'shop', icon: '🛒', label: 'Einkauf' },
     ...(user?.is_admin ? [{ id: 'admin', icon: '👑', label: 'Admin' }] : []),
   ]);
 
@@ -55,8 +58,11 @@
       <RecipeList />
     {:else if page === 'add'}
       <RecipeForm />
+    {:else if page === 'shop'}
+      <Lists currentUser={user} />
     {:else if page === 'admin' && user.is_admin}
       <Admin currentUser={user} />
+      <AdminHouseholds />
     {/if}
   </main>
 
@@ -127,26 +133,26 @@
     right: 0;
     display: flex;
     justify-content: center;
-    gap: 8px;
-    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    gap: 4px;
+    padding: 10px 8px calc(10px + env(safe-area-inset-bottom));
     background: var(--card);
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
   }
 
   .tabbar button {
     flex: 1;
-    max-width: 160px;
+    max-width: 120px;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 2px;
-    padding: 8px;
+    padding: 8px 4px;
     border: none;
     border-radius: 12px;
     background: none;
     color: var(--muted);
     font: inherit;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     cursor: pointer;
   }
 

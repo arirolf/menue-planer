@@ -23,9 +23,25 @@
   let error = $state('');
   let rollCount = $state(0);
 
+  let lists = $state([]);
+  let targetListId = $state(null);
+  let addedMessage = $state('');
+
+  async function loadLists() {
+    try {
+      const res = await fetch('/api/lists');
+      if (!res.ok) return;
+      lists = await res.json();
+      targetListId = lists[0]?.id ?? null;
+    } catch {
+      // no lists then, the button just won't show
+    }
+  }
+
   async function roll() {
     loading = true;
     error = '';
+    addedMessage = '';
     try {
       const params = new URLSearchParams({
         max_time: maxTime,
@@ -43,6 +59,23 @@
       loading = false;
     }
   }
+
+  async function addToList() {
+    if (!targetListId) return;
+    try {
+      const res = await fetch(`/api/lists/${targetListId}/from-recipe/${recipe.id}`, {
+        method: 'POST',
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      const list = lists.find((l) => l.id === targetListId);
+      addedMessage = `✓ ${data.added} Zutaten auf „${list?.name}"`;
+    } catch {
+      addedMessage = 'Hat nicht geklappt, nochmal versuchen';
+    }
+  }
+
+  loadLists();
 </script>
 
 <div class="page">
@@ -109,6 +142,20 @@
               </li>
             {/each}
           </ul>
+
+          {#if lists.length > 0}
+            <div class="to-list-row">
+              <select bind:value={targetListId}>
+                {#each lists as l (l.id)}
+                  <option value={l.id}>{l.household_id ? '🏠' : '📝'} {l.name}</option>
+                {/each}
+              </select>
+              <button class="to-list" onclick={addToList}>🛒 Hinzufügen</button>
+            </div>
+            {#if addedMessage}<p class="added">{addedMessage}</p>{/if}
+          {:else}
+            <p class="hint">Noch keine Einkaufsliste, erstell eine im 🛒 Tab</p>
+          {/if}
         {/if}
       </article>
     {/key}
@@ -184,5 +231,42 @@
   .amount {
     min-width: 64px;
     color: var(--muted);
+  }
+
+  .to-list-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 20px;
+  }
+
+  .to-list {
+    flex-shrink: 0;
+    padding: 10px 16px;
+    border: 2px solid var(--accent);
+    border-radius: 12px;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .to-list:hover {
+    background: var(--accent);
+    color: white;
+  }
+
+  .added {
+    text-align: center;
+    color: var(--success);
+    margin: 12px 0 0;
+  }
+
+  .hint {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin: 16px 0 0;
   }
 </style>

@@ -101,3 +101,53 @@ input[type='password']:focus { border-color: var(--accent); }
 
 .error { color: var(--error); }
 .success { color: var(--success); }
+
+/* Dropdowns */
+select {
+  width: 100%;
+  font: inherit;
+  padding: 12px 14px;
+  border: 2px solid var(--tag);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--text);
+  outline: none;
+  cursor: pointer;
+}
+select:focus { border-color: var(--accent); }
+
+/* Outlined secondary button */
+.ghost {
+  padding: 8px 16px;
+  border: 2px solid var(--tag);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ghost:hover:not(:disabled) { border-color: var(--accent); }
+.ghost:disabled { opacity: 0.4; cursor: default; }
+
+/* Grid of user checkboxes (sharing, household members) */
+.user-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+.user-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 2px solid var(--tag);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.user-check:has(input:checked) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.user-check input { accent-color: var(--accent); }
