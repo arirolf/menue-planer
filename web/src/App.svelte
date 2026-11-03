@@ -1,41 +1,123 @@
 <script>
+  import Login from './lib/Login.svelte';
   import Randomizer from './lib/Randomizer.svelte';
   import RecipeList from './lib/RecipeList.svelte';
   import RecipeForm from './lib/RecipeForm.svelte';
+  import Admin from './lib/Admin.svelte';
 
-  const tabs = [
+  let user = $state(null);
+  let checking = $state(true);
+  let page = $state('roll');
+
+  let tabs = $derived([
     { id: 'roll', icon: '🎲', label: 'Würfeln' },
     { id: 'list', icon: '📖', label: 'Rezepte' },
     { id: 'add', icon: '➕', label: 'Neu' },
-  ];
+    ...(user?.is_admin ? [{ id: 'admin', icon: '👑', label: 'Admin' }] : []),
+  ]);
 
-  let page = $state('roll');
+  async function checkSession() {
+    try {
+      const res = await fetch('/api/auth/me');
+      if (res.ok) user = await res.json();
+    } finally {
+      checking = false;
+    }
+  }
+
+  function handleLogin(loggedInUser) {
+    user = loggedInUser;
+    page = 'roll';
+  }
+
+  async function logout() {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    user = null;
+  }
+
+  checkSession();
 </script>
 
-<main>
-  {#if page === 'roll'}
-    <Randomizer />
-  {:else if page === 'list'}
-    <RecipeList />
-  {:else if page === 'add'}
-    <RecipeForm />
-  {/if}
-</main>
+{#if checking}
+  <div class="splash">🍽️</div>
+{:else if !user}
+  <Login onlogin={handleLogin} />
+{:else}
+  <header class="topbar">
+    <span class="hello">👋 {user.username}</span>
+    <button class="logout" onclick={logout}>Abmelden</button>
+  </header>
 
-<nav class="tabbar">
-  {#each tabs as tab}
-    <button class:active={page === tab.id} onclick={() => (page = tab.id)}>
-      <span class="icon">{tab.icon}</span>
-      <span>{tab.label}</span>
-    </button>
-  {/each}
-</nav>
+  <main>
+    {#if page === 'roll'}
+      <Randomizer />
+    {:else if page === 'list'}
+      <RecipeList />
+    {:else if page === 'add'}
+      <RecipeForm />
+    {:else if page === 'admin' && user.is_admin}
+      <Admin currentUser={user} />
+    {/if}
+  </main>
+
+  <nav class="tabbar">
+    {#each tabs as tab}
+      <button class:active={page === tab.id} onclick={() => (page = tab.id)}>
+        <span class="icon">{tab.icon}</span>
+        <span>{tab.label}</span>
+      </button>
+    {/each}
+  </nav>
+{/if}
 
 <style>
+  .splash {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    animation: pulse 1s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    50% { transform: scale(1.15); }
+  }
+
+  .topbar {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 16px 16px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .hello {
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  .logout {
+    border: none;
+    background: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.9rem;
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 8px;
+  }
+
+  .logout:hover {
+    background: var(--tag);
+    color: var(--text);
+  }
+
   main {
     max-width: 480px;
     margin: 0 auto;
-    padding: 40px 16px 120px;
+    padding: 20px 16px 120px;
   }
 
   .tabbar {

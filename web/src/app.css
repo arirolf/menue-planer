@@ -74,7 +74,8 @@ body {
 }
 
 /* Input fields */
-input[type='text'] {
+input[type='text'],
+input[type='password'] {
   width: 100%;
   font: inherit;
   padding: 12px 14px;
@@ -85,7 +86,8 @@ input[type='text'] {
   outline: none;
   transition: border-color 0.15s;
 }
-input[type='text']:focus { border-color: var(--accent); }
+input[type='text']:focus,
+input[type='password']:focus { border-color: var(--accent); }
 
 /* Small uppercase labels */
 .label {
