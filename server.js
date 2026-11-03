@@ -1,11 +1,20 @@
 import express from 'express';
-import { DatabaseSync } from 'node:sqlite';
+import cookieParser from 'cookie-parser';
+import { db } from './db.js';
+import {
+  checkLogin,
+  createSession,
+  deleteSession,
+  requireAuth,
+  cleanupSessions,
+  SESSION_COOKIE,
+} from './auth.js';
 
-const db = new DatabaseSync('menu.db');
-db.exec('PRAGMA foreign_keys = ON');
+cleanupSessions();
 
 const app = express();
 app.use(express.json());
+app.use(cookieParser());
 app.use(express.static('public'));
 
 // ---------- Helpers ----------
@@ -39,9 +48,43 @@ function saveIngredients(recipeId, ingredients) {
   }
 }
 
-// ---------- Routes ----------
+// ---------- Auth (public) ----------
 
-// All recipes, sorted by name
+app.post('/api/auth/login', (req, res) => {
+  const { username, password } = req.body ?? {};
+  if (typeof username !== 'string' || typeof password !== 'string') {
+    return res.status(400).json({ error: 'Username and password required' });
+  }
+
+  const user = checkLogin(username.trim().toLowerCase(), password);
+  if (!user) return res.status(401).json({ error: 'Wrong username or password' });
+
+  const { token, expiresAt } = createSession(user.id);
+  res.cookie(SESSION_COOKIE, token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    expires: new Date(expiresAt),
+  });
+  res.json({ id: user.id, username: user.username, language: user.language });
+});
+
+// ---------- Everything below requires a login ----------
+
+app.use('/api', requireAuth);
+
+app.get('/api/auth/me', (req, res) => {
+  res.json(req.user);
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  deleteSession(req.cookies[SESSION_COOKIE]);
+  res.clearCookie(SESSION_COOKIE);
+  res.status(204).end();
+});
+
+// ---------- Recipes ----------
+
 app.get('/api/recipes', (req, res) => {
   const recipes = db
     .prepare('SELECT * FROM recipes ORDER BY name COLLATE NOCASE')
@@ -49,7 +92,6 @@ app.get('/api/recipes', (req, res) => {
   res.json(recipes);
 });
 
-// One random recipe, optionally filtered
 // IMPORTANT: must come BEFORE /api/recipes/:id
 app.get('/api/recipes/random', (req, res) => {
   const maxTime = Number(req.query.max_time) || 6;
@@ -68,7 +110,6 @@ app.get('/api/recipes/random', (req, res) => {
   res.json(recipe);
 });
 
-// One specific recipe including ingredients
 app.get('/api/recipes/:id', (req, res) => {
   const recipe = db
     .prepare('SELECT * FROM recipes WHERE id = ?')
@@ -79,9 +120,8 @@ app.get('/api/recipes/:id', (req, res) => {
   res.json(recipe);
 });
 
-// Add a new recipe
 app.post('/api/recipes', (req, res) => {
-  const error = validateRecipe(req.body);
+  const error = validateRecipe(req.body ?? {});
   if (error) return res.status(400).json({ error });
 
   const { name, time_range, difficulty, ingredients = [] } = req.body;
@@ -89,8 +129,8 @@ app.post('/api/recipes', (req, res) => {
   db.exec('BEGIN');
   try {
     const result = db
-      .prepare('INSERT INTO recipes (name, time_range, difficulty) VALUES (?, ?, ?)')
-      .run(name.trim(), time_range, difficulty);
+      .prepare('INSERT INTO recipes (name, time_range, difficulty, created_by) VALUES (?, ?, ?, ?)')
+      .run(name.trim(), time_range, difficulty, req.user.id);
     const recipeId = Number(result.lastInsertRowid);
     saveIngredients(recipeId, ingredients);
     db.exec('COMMIT');
@@ -101,10 +141,9 @@ app.post('/api/recipes', (req, res) => {
   }
 });
 
-// Update an existing recipe
 app.put('/api/recipes/:id', (req, res) => {
   const id = Number(req.params.id);
-  const error = validateRecipe(req.body);
+  const error = validateRecipe(req.body ?? {});
   if (error) return res.status(400).json({ error });
 
   const exists = db.prepare('SELECT id FROM recipes WHERE id = ?').get(id);
@@ -126,7 +165,6 @@ app.put('/api/recipes/:id', (req, res) => {
   }
 });
 
-// Delete a recipe (ingredients go with it thanks to ON DELETE CASCADE)
 app.delete('/api/recipes/:id', (req, res) => {
   const result = db
     .prepare('DELETE FROM recipes WHERE id = ?')
