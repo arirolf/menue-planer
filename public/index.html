@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Was kochen wir?</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 500px;
+      margin: 40px auto;
+      padding: 0 16px;
+      text-align: center;
+    }
+    button {
+      font-size: 1.2rem;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 12px;
+      background: #ff6b35;
+      color: white;
+      cursor: pointer;
+    }
+    #result { margin-top: 30px; }
+    ul { list-style: none; padding: 0; }
+  </style>
+</head>
+<body>
+  <h1>🍽️ Was kochen wir heute?</h1>
+  <button id="pick">Würfeln!</button>
+  <div id="result"></div>
+
+  <script>
+    const button = document.getElementById('pick');
+    const result = document.getElementById('result');
+
+    button.addEventListener('click', async () => {
+      const response = await fetch('/api/recipes/random');
+      const recipe = await response.json();
+
+      const items = recipe.ingredients
+        .map(ing => `<li>${ing.amount ?? ''} ${ing.name}</li>`)
+        .join('');
+
+      result.innerHTML = `
+        <h2>${recipe.name}</h2>
+        <ul>${items}</ul>
+      `;
+    });
+  </script>
+</body>
+</html>
