@@ -1,6 +1,7 @@
 import express from 'express';
 import cookieParser from 'cookie-parser';
-import { db } from './db.js';
+import { db, transaction } from './db.js';
+import listsRouter, { validUserIds } from './lists.js';
 import {
   checkLogin,
   createSession,
@@ -93,6 +94,14 @@ app.post('/api/auth/logout', (req, res) => {
   res.status(204).end();
 });
 
+// All usernames, for the share picker
+app.get('/api/users', (req, res) => {
+  res.json(db.prepare('SELECT id, username FROM users ORDER BY username').all());
+});
+
+// All shopping list routes live in lists.js
+app.use('/api/lists', listsRouter);
+
 // ---------- Recipes ----------
 
 app.get('/api/recipes', (req, res) => {
@@ -136,17 +145,17 @@ app.post('/api/recipes', (req, res) => {
 
   const { name, time_range, difficulty, ingredients = [] } = req.body;
 
-  db.exec('BEGIN');
   try {
-    const result = db
-      .prepare('INSERT INTO recipes (name, time_range, difficulty, created_by) VALUES (?, ?, ?, ?)')
-      .run(name.trim(), time_range, difficulty, req.user.id);
-    const recipeId = Number(result.lastInsertRowid);
-    saveIngredients(recipeId, ingredients);
-    db.exec('COMMIT');
-    res.status(201).json({ id: recipeId });
+    const id = transaction(() => {
+      const result = db
+        .prepare('INSERT INTO recipes (name, time_range, difficulty, created_by) VALUES (?, ?, ?, ?)')
+        .run(name.trim(), time_range, difficulty, req.user.id);
+      const recipeId = Number(result.lastInsertRowid);
+      saveIngredients(recipeId, ingredients);
+      return recipeId;
+    });
+    res.status(201).json({ id });
   } catch (err) {
-    db.exec('ROLLBACK');
     res.status(500).json({ error: 'Could not save recipe' });
   }
 });
@@ -161,16 +170,15 @@ app.put('/api/recipes/:id', (req, res) => {
 
   const { name, time_range, difficulty, ingredients = [] } = req.body;
 
-  db.exec('BEGIN');
   try {
-    db.prepare('UPDATE recipes SET name = ?, time_range = ?, difficulty = ? WHERE id = ?')
-      .run(name.trim(), time_range, difficulty, id);
-    db.prepare('DELETE FROM ingredients WHERE recipe_id = ?').run(id);
-    saveIngredients(id, ingredients);
-    db.exec('COMMIT');
+    transaction(() => {
+      db.prepare('UPDATE recipes SET name = ?, time_range = ?, difficulty = ? WHERE id = ?')
+        .run(name.trim(), time_range, difficulty, id);
+      db.prepare('DELETE FROM ingredients WHERE recipe_id = ?').run(id);
+      saveIngredients(id, ingredients);
+    });
     res.json({ id });
   } catch (err) {
-    db.exec('ROLLBACK');
     res.status(500).json({ error: 'Could not update recipe' });
   }
 });
@@ -184,7 +192,7 @@ app.delete('/api/recipes/:id', (req, res) => {
   res.status(204).end();
 });
 
-// ---------- Admin ----------
+// ---------- Admin: users ----------
 
 app.get('/api/admin/users', requireAdmin, (req, res) => {
   const users = db
@@ -236,6 +244,80 @@ app.delete('/api/admin/users/:id', requireAdmin, (req, res) => {
   if (r.changes === 0) return res.status(404).json({ error: 'User not found' });
   res.status(204).end();
 });
+
+// ---------- Admin: households ----------
+
+app.get('/api/admin/households', requireAdmin, (req, res) => {
+  const households = db
+    .prepare('SELECT id, name FROM households ORDER BY name COLLATE NOCASE')
+    .all();
+  const members = db
+    .prepare(`
+      SELECT hm.household_id, u.id, u.username FROM household_members hm
+      JOIN users u ON u.id = hm.user_id ORDER BY u.username
+    `)
+    .all();
+
+  res.json(
+    households.map((h) => ({
+      ...h,
+      members: members
+        .filter((m) => m.household_id === h.id)
+        .map(({ id, username }) => ({ id, username })),
+    }))
+  );
+});
+
+app.post('/api/admin/households', requireAdmin, (req, res) => {
+  const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+  if (!name) return res.status(400).json({ error: 'Name is required' });
+
+  const id = transaction(() => {
+    const r = db.prepare('INSERT INTO households (name) VALUES (?)').run(name);
+    const householdId = Number(r.lastInsertRowid);
+    db.prepare('INSERT INTO shopping_lists (name, household_id) VALUES (?, ?)').run(name, householdId);
+    return householdId;
+  });
+  res.status(201).json({ id });
+});
+
+app.patch('/api/admin/households/:id', requireAdmin, (req, res) => {
+  const id = Number(req.params.id);
+  const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+  if (!name) return res.status(400).json({ error: 'Name is required' });
+
+  const changes = transaction(() => {
+    const r = db.prepare('UPDATE households SET name = ? WHERE id = ?').run(name, id);
+    db.prepare('UPDATE shopping_lists SET name = ? WHERE household_id = ?').run(name, id);
+    return r.changes;
+  });
+  if (changes === 0) return res.status(404).json({ error: 'Household not found' });
+  res.json({ ok: true });
+});
+
+app.delete('/api/admin/households/:id', requireAdmin, (req, res) => {
+  const r = db.prepare('DELETE FROM households WHERE id = ?').run(Number(req.params.id));
+  if (r.changes === 0) return res.status(404).json({ error: 'Household not found' });
+  res.status(204).end();
+});
+
+app.put('/api/admin/households/:id/members', requireAdmin, (req, res) => {
+  const id = Number(req.params.id);
+  if (!db.prepare('SELECT id FROM households WHERE id = ?').get(id)) {
+    return res.status(404).json({ error: 'Household not found' });
+  }
+  const ids = validUserIds(req.body?.user_ids);
+  if (!ids) return res.status(400).json({ error: 'user_ids must be a list of existing users' });
+
+  transaction(() => {
+    db.prepare('DELETE FROM household_members WHERE household_id = ?').run(id);
+    const insert = db.prepare('INSERT INTO household_members (household_id, user_id) VALUES (?, ?)');
+    for (const userId of ids) insert.run(id, userId);
+  });
+  res.json({ ok: true });
+});
+
+// ---------- Start ----------
 
 const PORT = process.env.PORT || 4100;
 
