@@ -4,6 +4,11 @@ import { db } from './db.js';
 const SESSION_DAYS = 90;
 export const SESSION_COOKIE = 'menu_session';
 
+export const USERNAME_PATTERN = /^[a-z0-9_-]{2,30}$/;
+
+export function generatePassword() {
+  return crypto.randomBytes(9).toString('base64url');
+}
 // ---------- Passwords ----------
 
 export function hashPassword(password) {
@@ -52,13 +57,13 @@ export function getSessionUser(token) {
   if (!token) return null;
   const user = db
     .prepare(`
-      SELECT u.id, u.username, u.language
+      SELECT u.id, u.username, u.language, u.is_admin
       FROM sessions s
       JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = ? AND s.expires_at > ?
     `)
     .get(sha256(token), Date.now());
-  return user ?? null;
+  return user ? { ...user, is_admin: user.is_admin === 1 } : null;
 }
 
 export function deleteSession(token) {
@@ -79,5 +84,10 @@ export function requireAuth(req, res, next) {
   const user = getSessionUser(req.cookies[SESSION_COOKIE]);
   if (!user) return res.status(401).json({ error: 'Not logged in' });
   req.user = user;
+  next();
+}
+
+export function requireAdmin(req, res, next) {
+  if (!req.user?.is_admin) return res.status(403).json({ error: 'Admins only' });
   next();
 }

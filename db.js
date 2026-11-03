@@ -10,3 +10,9 @@ db.exec(`
     expires_at  INTEGER NOT NULL
   );
 `);
+
+// Add the is_admin column if it doesn't exist yet
+const userColumns = db.prepare('PRAGMA table_info(users)').all();
+if (!userColumns.some((c) => c.name === 'is_admin')) {
+  db.exec('ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0');
+}

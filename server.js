@@ -5,8 +5,13 @@ import {
   checkLogin,
   createSession,
   deleteSession,
+  deleteUserSessions,
   requireAuth,
+  requireAdmin,
   cleanupSessions,
+  hashPassword,
+  generatePassword,
+  USERNAME_PATTERN,
   SESSION_COOKIE,
 } from './auth.js';
 
@@ -66,7 +71,12 @@ app.post('/api/auth/login', (req, res) => {
     secure: process.env.NODE_ENV === 'production',
     expires: new Date(expiresAt),
   });
-  res.json({ id: user.id, username: user.username, language: user.language });
+  res.json({
+    id: user.id,
+    username: user.username,
+    language: user.language,
+    is_admin: user.is_admin === 1,
+  });
 });
 
 // ---------- Everything below requires a login ----------
@@ -171,6 +181,59 @@ app.delete('/api/recipes/:id', (req, res) => {
     .run(Number(req.params.id));
 
   if (result.changes === 0) return res.status(404).json({ error: 'Recipe not found' });
+  res.status(204).end();
+});
+
+// ---------- Admin ----------
+
+app.get('/api/admin/users', requireAdmin, (req, res) => {
+  const users = db
+    .prepare('SELECT id, username, language, is_admin, created_at FROM users ORDER BY username')
+    .all();
+  res.json(users.map((u) => ({ ...u, is_admin: u.is_admin === 1 })));
+});
+
+app.post('/api/admin/users', requireAdmin, (req, res) => {
+  const { username, is_admin = false } = req.body ?? {};
+  if (typeof username !== 'string') {
+    return res.status(400).json({ error: 'Username required' });
+  }
+
+  const clean = username.trim().toLowerCase();
+  if (!USERNAME_PATTERN.test(clean)) {
+    return res.status(400).json({ error: 'Username: 2-30 characters, only a-z, 0-9, _ and -' });
+  }
+  if (db.prepare('SELECT id FROM users WHERE username = ?').get(clean)) {
+    return res.status(409).json({ error: 'Username already taken' });
+  }
+
+  const password = generatePassword();
+  const r = db
+    .prepare('INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, ?)')
+    .run(clean, hashPassword(password), is_admin ? 1 : 0);
+  res.status(201).json({ id: Number(r.lastInsertRowid), username: clean, password });
+});
+
+app.post('/api/admin/users/:id/reset-password', requireAdmin, (req, res) => {
+  const id = Number(req.params.id);
+  if (!db.prepare('SELECT id FROM users WHERE id = ?').get(id)) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+
+  const password = generatePassword();
+  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(password), id);
+  deleteUserSessions(id);
+  res.json({ password });
+});
+
+app.delete('/api/admin/users/:id', requireAdmin, (req, res) => {
+  const id = Number(req.params.id);
+  if (id === req.user.id) {
+    return res.status(400).json({ error: "You can't delete yourself" });
+  }
+
+  const r = db.prepare('DELETE FROM users WHERE id = ?').run(id);
+  if (r.changes === 0) return res.status(404).json({ error: 'User not found' });
   res.status(204).end();
 });
 
