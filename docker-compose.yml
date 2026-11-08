@@ -1,0 +1,11 @@
+services:
+  menu-app:
+    build: .
+    container_name: menu-app
+    restart: unless-stopped
+    environment:
+      - PORT=4100
+    volumes:
+      - ./data:/data
+    ports:
+      - "127.0.0.1:4100:4100"
