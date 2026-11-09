@@ -116,3 +116,20 @@ db.exec(`
     created_by   INTEGER REFERENCES users(id) ON DELETE SET NULL
   );
 `);
+// ---------- Dislikes: who doesn't like which recipe ----------
+db.exec(`
+  CREATE TABLE IF NOT EXISTS recipe_dislikes (
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    recipe_id  INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+    PRIMARY KEY (user_id, recipe_id)
+  );
+`);
+
+// ---------- Trace list items back to their recipe ----------
+const itemColumns = db.prepare('PRAGMA table_info(list_items)').all();
+if (!itemColumns.some((c) => c.name === 'recipe_id')) {
+  db.exec(`
+    ALTER TABLE list_items ADD COLUMN recipe_id INTEGER REFERENCES recipes(id) ON DELETE SET NULL;
+    ALTER TABLE list_items ADD COLUMN recipe_name TEXT;
+  `);
+}

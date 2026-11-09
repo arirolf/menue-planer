@@ -3,6 +3,8 @@
   import { TIME_LABELS } from './constants.js';
   import { todayISO, formatShort, SLOT_LABELS } from './dates.js';
 
+  const EATERS_KEY = 'menu.eaters';
+
   const timeFilters = [
     { value: 6, label: 'Egal' },
     { value: 2, label: '≤ 20 min' },
@@ -18,6 +20,9 @@
 
   let maxTime = $state(6);
   let maxDifficulty = $state(3);
+
+  let users = $state([]);
+  let eaters = $state([]);
 
   let recipe = $state(null);
   let loading = $state(false);
@@ -35,9 +40,41 @@
   let planMessage = $state('');
   let planOk = $state(false);
 
+  // ---------- Who is eating (remembered on this device) ----------
+
+  function restoreEaters() {
+    const ids = users.map((u) => u.id);
+    let saved = null;
+    try {
+      saved = JSON.parse(localStorage.getItem(EATERS_KEY));
+    } catch {
+      // private mode or broken value: just start fresh
+    }
+    eaters = Array.isArray(saved) ? saved.filter((id) => ids.includes(id)) : ids;
+  }
+
+  function toggleEater(id) {
+    eaters = eaters.includes(id) ? eaters.filter((e) => e !== id) : [...eaters, id];
+    try {
+      localStorage.setItem(EATERS_KEY, JSON.stringify(eaters));
+    } catch {
+      // not saved, but the filter still works for now
+    }
+  }
+
+  // ---------- Loading ----------
+
   async function loadTargets() {
     try {
-      const [lRes, cRes] = await Promise.all([fetch('/api/lists'), fetch('/api/calendars')]);
+      const [uRes, lRes, cRes] = await Promise.all([
+        fetch('/api/users'),
+        fetch('/api/lists'),
+        fetch('/api/calendars'),
+      ]);
+      if (uRes.ok) {
+        users = await uRes.json();
+        restoreEaters();
+      }
       if (lRes.ok) {
         lists = await lRes.json();
         targetListId = lists[0]?.id ?? null;
@@ -47,9 +84,11 @@
         planCalendarId = calendars[0]?.id ?? null;
       }
     } catch {
-      // then those buttons just won't show
+      // then those parts just won't show
     }
   }
+
+  // ---------- Actions ----------
 
   async function roll() {
     loading = true;
@@ -61,6 +100,8 @@
         max_time: maxTime,
         max_difficulty: maxDifficulty,
       });
+      if (eaters.length > 0) params.set('eaters', eaters.join(','));
+
       const res = await fetch(`/api/recipes/random?${params}`);
       if (res.status === 404) throw new Error('Kein passendes Rezept gefunden 🤷');
       if (!res.ok) throw new Error('Server-Fehler, bitte nochmal versuchen');
@@ -115,6 +156,23 @@
   <p class="subtitle">Ein Klick, und die Diskussion ist vorbei.</p>
 
   <section class="filters">
+    {#if users.length > 0}
+      <div>
+        <span class="label">Wer isst mit?</span>
+        <div class="chips centered">
+          {#each users as u (u.id)}
+            <button
+              class="chip"
+              class:active={eaters.includes(u.id)}
+              onclick={() => toggleEater(u.id)}
+            >
+              {u.username}
+            </button>
+          {/each}
+        </div>
+      </div>
+    {/if}
+
     <div>
       <span class="label">Zeit</span>
       <div class="chips centered">

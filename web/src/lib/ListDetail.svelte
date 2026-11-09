@@ -276,6 +276,7 @@
               <span class="text">
                 {#if item.amount}<span class="qty">{item.amount}</span>{/if}
                 {item.name}
+                                {#if item.recipe_name}<span class="source">🍽️ {item.recipe_name}</span>{/if}
               </span>
               <button class="delete" onclick={() => removeItem(item)} aria-label="Löschen">✕</button>
             </li>
@@ -295,6 +296,7 @@
               <span class="text">
                 {#if item.amount}<span class="qty">{item.amount}</span>{/if}
                 {item.name}
+                                {#if item.recipe_name}<span class="source">🍽️ {item.recipe_name}</span>{/if}
               </span>
               <button class="delete" onclick={() => removeItem(item)} aria-label="Löschen">✕</button>
             </li>
@@ -491,5 +493,12 @@
     font: inherit;
     font-size: 0.9rem;
     cursor: pointer;
+  }
+  
+    .source {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.78rem;
+    color: var(--muted);
   }
 </style>

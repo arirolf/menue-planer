@@ -112,29 +112,86 @@ app.use('/api/admin/calendars', adminCalendarsRouter);
 
 // ---------- Recipes ----------
 
+// All recipes, including who doesn't like them
 app.get('/api/recipes', (req, res) => {
   const recipes = db
     .prepare('SELECT * FROM recipes ORDER BY name COLLATE NOCASE')
     .all();
-  res.json(recipes);
+  const dislikes = db
+    .prepare(`
+      SELECT d.recipe_id, u.id AS user_id, u.username
+      FROM recipe_dislikes d
+      JOIN users u ON u.id = d.user_id
+      ORDER BY u.username
+    `)
+    .all();
+
+  res.json(
+    recipes.map((r) => {
+      const forRecipe = dislikes.filter((d) => d.recipe_id === r.id);
+      return {
+        ...r,
+        disliked_by: forRecipe.map((d) => d.username),
+        disliked_by_me: forRecipe.some((d) => d.user_id === req.user.id),
+      };
+    })
+  );
 });
 
+// One random recipe, filtered by time, difficulty and who is eating
 // IMPORTANT: must come BEFORE /api/recipes/:id
 app.get('/api/recipes/random', (req, res) => {
   const maxTime = Number(req.query.max_time) || 6;
   const maxDifficulty = Number(req.query.max_difficulty) || 3;
 
+  // "?eaters=1,3" -> [1, 3]
+  const eaters = String(req.query.eaters ?? '')
+    .split(',')
+    .map(Number)
+    .filter((n) => Number.isInteger(n) && n > 0)
+    .slice(0, 50);
+
+  // Skip recipes that anyone eating doesn't like
+  const placeholders = eaters.map(() => '?').join(', ');
+  const dislikeFilter = eaters.length
+    ? `AND NOT EXISTS (
+         SELECT 1 FROM recipe_dislikes d
+         WHERE d.recipe_id = recipes.id AND d.user_id IN (${placeholders})
+       )`
+    : '';
+
   const recipe = db
     .prepare(`
       SELECT * FROM recipes
       WHERE time_range <= ? AND difficulty <= ?
+      ${dislikeFilter}
       ORDER BY RANDOM() LIMIT 1
     `)
-    .get(maxTime, maxDifficulty);
+    .get(maxTime, maxDifficulty, ...eaters);
 
   if (!recipe) return res.status(404).json({ error: 'No matching recipe' });
   recipe.ingredients = getIngredients(recipe.id);
   res.json(recipe);
+});
+
+// Flag / unflag "I don't like this" for the logged-in user
+app.put('/api/recipes/:id/dislike', (req, res) => {
+  const id = Number(req.params.id);
+  if (typeof req.body?.dislike !== 'boolean') {
+    return res.status(400).json({ error: 'dislike must be true or false' });
+  }
+  if (!db.prepare('SELECT id FROM recipes WHERE id = ?').get(id)) {
+    return res.status(404).json({ error: 'Recipe not found' });
+  }
+
+  if (req.body.dislike) {
+    db.prepare('INSERT OR IGNORE INTO recipe_dislikes (user_id, recipe_id) VALUES (?, ?)')
+      .run(req.user.id, id);
+  } else {
+    db.prepare('DELETE FROM recipe_dislikes WHERE user_id = ? AND recipe_id = ?')
+      .run(req.user.id, id);
+  }
+  res.json({ ok: true });
 });
 
 app.get('/api/recipes/:id', (req, res) => {

@@ -267,10 +267,11 @@ router.post('/:id/to-list', loadCalendar, (req, res) => {
 
   const r = db
     .prepare(`
-      INSERT INTO list_items (list_id, name, amount, added_by)
-      SELECT ?, i.name, i.amount, ?
+      INSERT INTO list_items (list_id, name, amount, added_by, recipe_id, recipe_name)
+      SELECT ?, i.name, i.amount, ?, r.id, r.name
       FROM meal_plans m
-      JOIN ingredients i ON i.recipe_id = m.recipe_id
+      JOIN recipes r ON r.id = m.recipe_id
+      JOIN ingredients i ON i.recipe_id = r.id
       WHERE m.calendar_id = ? AND m.date BETWEEN ? AND ?
     `)
     .run(listId, req.user.id, req.calendar.id, range.from, range.to);

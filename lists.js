@@ -77,8 +77,7 @@ router.get('/:id', loadList, (req, res) => {
   const list = req.list;
 
   list.items = db
-    .prepare('SELECT id, name, amount, checked FROM list_items WHERE list_id = ? ORDER BY checked, id')
-    .all(list.id)
+    .prepare('SELECT id, name, amount, checked, recipe_name FROM list_items WHERE list_id = ? ORDER BY checked, id')    .all(list.id)
     .map((item) => ({ ...item, checked: item.checked === 1 }));
 
   list.members = list.household_id
@@ -201,12 +200,15 @@ router.delete('/:id/checked', loadList, (req, res) => {
   res.status(204).end();
 });
 
-// Copy a recipe's ingredients onto this list
+// Copy a recipe's ingredients onto this list, tagged with the recipe
 router.post('/:id/from-recipe/:recipeId', loadList, (req, res) => {
   const r = db
     .prepare(`
-      INSERT INTO list_items (list_id, name, amount, added_by)
-      SELECT ?, name, amount, ? FROM ingredients WHERE recipe_id = ?
+      INSERT INTO list_items (list_id, name, amount, added_by, recipe_id, recipe_name)
+      SELECT ?, i.name, i.amount, ?, r.id, r.name
+      FROM ingredients i
+      JOIN recipes r ON r.id = i.recipe_id
+      WHERE i.recipe_id = ?
     `)
     .run(req.list.id, req.user.id, Number(req.params.recipeId));
   res.status(201).json({ added: r.changes });
