@@ -137,8 +137,7 @@
 
     <div class="actions">
       {#if oncancel}
-        <button type="button" class="cancel" onclick={oncancel}>Abbrechen</button>
-      {/if}
+        <button type="button" class="cancel" onclick={oncancel}>{isEdit ? 'Abbrechen' : 'Zurück'}</button>      {/if}
       <button type="submit" class="btn-primary save" disabled={saving}>
         {saving ? 'Speichere…' : 'Rezept speichern'}
       </button>

@@ -1,6 +1,7 @@
 <script>
   import { fly } from 'svelte/transition';
   import { TIME_LABELS } from './constants.js';
+  import { todayISO, formatShort, SLOT_LABELS } from './dates.js';
 
   const timeFilters = [
     { value: 6, label: 'Egal' },
@@ -27,14 +28,26 @@
   let targetListId = $state(null);
   let addedMessage = $state('');
 
-  async function loadLists() {
+  let calendars = $state([]);
+  let planCalendarId = $state(null);
+  let planDate = $state(todayISO());
+  let planSlot = $state('dinner');
+  let planMessage = $state('');
+  let planOk = $state(false);
+
+  async function loadTargets() {
     try {
-      const res = await fetch('/api/lists');
-      if (!res.ok) return;
-      lists = await res.json();
-      targetListId = lists[0]?.id ?? null;
+      const [lRes, cRes] = await Promise.all([fetch('/api/lists'), fetch('/api/calendars')]);
+      if (lRes.ok) {
+        lists = await lRes.json();
+        targetListId = lists[0]?.id ?? null;
+      }
+      if (cRes.ok) {
+        calendars = await cRes.json();
+        planCalendarId = calendars[0]?.id ?? null;
+      }
     } catch {
-      // no lists then, the button just won't show
+      // then those buttons just won't show
     }
   }
 
@@ -42,6 +55,7 @@
     loading = true;
     error = '';
     addedMessage = '';
+    planMessage = '';
     try {
       const params = new URLSearchParams({
         max_time: maxTime,
@@ -60,6 +74,24 @@
     }
   }
 
+  async function plan() {
+    planMessage = '';
+    try {
+      const res = await fetch(`/api/calendars/${planCalendarId}/meals`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: planDate, slot: planSlot, recipe_id: recipe.id }),
+      });
+      if (res.status === 409) throw new Error('Da ist schon etwas geplant 📅');
+      if (!res.ok) throw new Error('Hat nicht geklappt, nochmal versuchen');
+      planOk = true;
+      planMessage = `✓ Eingeplant: ${formatShort(planDate)} · ${SLOT_LABELS[planSlot]}`;
+    } catch (e) {
+      planOk = false;
+      planMessage = e.message;
+    }
+  }
+
   async function addToList() {
     if (!targetListId) return;
     try {
@@ -75,7 +107,7 @@
     }
   }
 
-  loadLists();
+  loadTargets();
 </script>
 
 <div class="page">
@@ -142,20 +174,43 @@
               </li>
             {/each}
           </ul>
+        {/if}
 
-          {#if lists.length > 0}
-            <div class="to-list-row">
-              <select bind:value={targetListId}>
-                {#each lists as l (l.id)}
-                  <option value={l.id}>{l.household_id ? '🏠' : '📝'} {l.name}</option>
+        {#if calendars.length > 0}
+          <div class="action">
+            <span class="label">📅 Einplanen</span>
+            {#if calendars.length > 1}
+              <select class="spaced" bind:value={planCalendarId}>
+                {#each calendars as c (c.id)}
+                  <option value={c.id}>{c.name}</option>
                 {/each}
               </select>
-              <button class="to-list" onclick={addToList}>🛒 Hinzufügen</button>
+            {/if}
+            <div class="row">
+              <input type="date" bind:value={planDate} />
+              <select class="slot-select" bind:value={planSlot}>
+                <option value="lunch">Mittag</option>
+                <option value="dinner">Abend</option>
+              </select>
             </div>
-            {#if addedMessage}<p class="added">{addedMessage}</p>{/if}
-          {:else}
-            <p class="hint">Noch keine Einkaufsliste, erstell eine im 🛒 Tab</p>
-          {/if}
+            <button class="action-btn" onclick={plan}>📅 Einplanen</button>
+            {#if planMessage}
+              <p class="message" class:ok={planOk} class:fail={!planOk}>{planMessage}</p>
+            {/if}
+          </div>
+        {/if}
+
+        {#if recipe.ingredients.length > 0 && lists.length > 0}
+          <div class="action">
+            <span class="label">🛒 Zutaten auf Liste</span>
+            <select class="spaced" bind:value={targetListId}>
+              {#each lists as l (l.id)}
+                <option value={l.id}>{l.household_id ? '🏠' : '📝'} {l.name}</option>
+              {/each}
+            </select>
+            <button class="action-btn" onclick={addToList}>🛒 Hinzufügen</button>
+            {#if addedMessage}<p class="message ok">{addedMessage}</p>{/if}
+          </div>
         {/if}
       </article>
     {/key}
@@ -233,17 +288,30 @@
     color: var(--muted);
   }
 
-  .to-list-row {
-    display: flex;
-    gap: 8px;
+  .action {
     margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px solid var(--tag);
   }
 
-  .to-list {
+  .row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .slot-select {
+    width: 120px;
     flex-shrink: 0;
-    padding: 10px 16px;
+  }
+
+  .spaced { margin-bottom: 8px; }
+
+  .action-btn {
+    width: 100%;
+    padding: 14px;
     border: 2px solid var(--accent);
-    border-radius: 12px;
+    border-radius: 999px;
     background: none;
     color: var(--accent);
     font: inherit;
@@ -252,21 +320,16 @@
     transition: background 0.15s, color 0.15s;
   }
 
-  .to-list:hover {
+  .action-btn:hover {
     background: var(--accent);
     color: white;
   }
 
-  .added {
+  .message {
     text-align: center;
-    color: var(--success);
-    margin: 12px 0 0;
+    margin: 10px 0 0;
   }
 
-  .hint {
-    text-align: center;
-    color: var(--muted);
-    font-size: 0.9rem;
-    margin: 16px 0 0;
-  }
+  .message.ok { color: var(--success); }
+  .message.fail { color: var(--error); }
 </style>

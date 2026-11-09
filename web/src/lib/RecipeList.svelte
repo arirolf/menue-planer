@@ -7,8 +7,8 @@
   let error = $state('');
   let search = $state('');
   let editing = $state(null);
+  let creating = $state(false);
 
-  // Recalculates automatically when recipes or search change
   let filtered = $derived(
     recipes.filter((r) => r.name.toLowerCase().includes(search.trim().toLowerCase()))
   );
@@ -49,8 +49,9 @@
     }
   }
 
-  function handleSaved() {
+  function closeForm() {
     editing = null;
+    creating = false;
     load();
   }
 
@@ -58,10 +59,15 @@
 </script>
 
 {#if editing}
-  <RecipeForm recipe={editing} onsaved={handleSaved} oncancel={() => (editing = null)} />
+  <RecipeForm recipe={editing} onsaved={closeForm} oncancel={closeForm} />
+{:else if creating}
+  <RecipeForm oncancel={closeForm} />
 {:else}
   <div class="page">
-    <h1>Rezepte</h1>
+    <div class="head">
+      <h1>Rezepte</h1>
+      <button class="btn-primary new" onclick={() => (creating = true)}>+ Neu</button>
+    </div>
 
     <input type="text" bind:value={search} placeholder="🔍 Suchen…" class="search" />
 
@@ -70,7 +76,7 @@
     {:else if error}
       <p class="error">{error}</p>
     {:else if recipes.length === 0}
-      <p class="muted">Noch keine Rezepte. Leg im Tab ➕ eins an!</p>
+      <p class="muted">Noch keine Rezepte. Leg mit „+ Neu" eins an!</p>
     {:else if filtered.length === 0}
       <p class="muted">Nichts gefunden für „{search}"</p>
     {:else}
@@ -91,10 +97,21 @@
 {/if}
 
 <style>
+  .head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
   h1 {
     font-size: 2rem;
-    margin: 0 0 20px;
-    text-align: center;
+    margin: 0;
+  }
+
+  .new {
+    padding: 10px 20px;
+    font-size: 1rem;
   }
 
   .search { margin-bottom: 16px; }

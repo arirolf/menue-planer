@@ -2,10 +2,11 @@
   import Login from './lib/Login.svelte';
   import Randomizer from './lib/Randomizer.svelte';
   import RecipeList from './lib/RecipeList.svelte';
-  import RecipeForm from './lib/RecipeForm.svelte';
+  import Calendar from './lib/Calendar.svelte';
   import Lists from './lib/Lists.svelte';
   import Admin from './lib/Admin.svelte';
   import AdminHouseholds from './lib/AdminHouseholds.svelte';
+  import AdminCalendars from './lib/AdminCalendars.svelte';
 
   let user = $state(null);
   let checking = $state(true);
@@ -13,8 +14,8 @@
 
   let tabs = $derived([
     { id: 'roll', icon: '🎲', label: 'Würfeln' },
-    { id: 'list', icon: '📖', label: 'Rezepte' },
-    { id: 'add', icon: '➕', label: 'Neu' },
+    { id: 'recipes', icon: '📖', label: 'Rezepte' },
+    { id: 'cal', icon: '📅', label: 'Kalender' },
     { id: 'shop', icon: '🛒', label: 'Einkauf' },
     ...(user?.is_admin ? [{ id: 'admin', icon: '👑', label: 'Admin' }] : []),
   ]);
@@ -54,15 +55,16 @@
   <main>
     {#if page === 'roll'}
       <Randomizer />
-    {:else if page === 'list'}
+    {:else if page === 'recipes'}
       <RecipeList />
-    {:else if page === 'add'}
-      <RecipeForm />
+    {:else if page === 'cal'}
+      <Calendar />
     {:else if page === 'shop'}
       <Lists currentUser={user} />
     {:else if page === 'admin' && user.is_admin}
       <Admin currentUser={user} />
       <AdminHouseholds />
+      <AdminCalendars />
     {/if}
   </main>
 

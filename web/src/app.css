@@ -151,3 +151,63 @@ select:focus { border-color: var(--accent); }
   background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 .user-check input { accent-color: var(--accent); }
+/* Date, time and multi-line inputs */
+input[type='date'],
+input[type='time'],
+textarea {
+  width: 100%;
+  font: inherit;
+  padding: 12px 14px;
+  border: 2px solid var(--tag);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--text);
+  outline: none;
+  color-scheme: light dark;
+}
+input[type='date']:focus,
+input[type='time']:focus,
+textarea:focus { border-color: var(--accent); }
+textarea { resize: vertical; min-height: 70px; }
+
+/* Bottom sheet for editors */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  border: none;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.45);
+  cursor: default;
+}
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 51;
+  max-width: 480px;
+  margin: 0 auto;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: var(--card);
+  border-radius: 24px 24px 0 0;
+  padding: 24px 20px calc(24px + env(safe-area-inset-bottom));
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.25);
+}
+.sheet h2 { margin: 0 0 4px; font-size: 1.4rem; }
+.sheet .sub { color: var(--muted); margin: 0 0 20px; }
+.sheet .field { margin-bottom: 18px; }
+.sheet-actions { display: flex; gap: 8px; margin-top: 8px; }
+.sheet-actions .btn-primary { flex: 1; }
+.danger-link {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 10px;
+  border: none;
+  background: none;
+  color: var(--error);
+  font: inherit;
+  cursor: pointer;
+}
