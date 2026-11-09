@@ -4,6 +4,7 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import { db, transaction } from './db.js';
 import listsRouter, { validUserIds } from './lists.js';
+import calendarsRouter, { adminRouter as adminCalendarsRouter } from './calendars.js';
 import {
   checkLogin,
   createSession,
@@ -106,6 +107,8 @@ app.get('/api/users', (req, res) => {
 
 // All shopping list routes live in lists.js
 app.use('/api/lists', listsRouter);
+app.use('/api/calendars', calendarsRouter);
+app.use('/api/admin/calendars', adminCalendarsRouter);
 
 // ---------- Recipes ----------
 

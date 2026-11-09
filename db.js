@@ -85,3 +85,34 @@ if (!listColumns.some((c) => c.name === 'household_id')) {
     );
   `);
 }
+// ---------- Calendars ----------
+db.exec(`
+  CREATE TABLE IF NOT EXISTS calendars (
+    id            INTEGER PRIMARY KEY,
+    name          TEXT NOT NULL,
+    household_id  INTEGER NOT NULL UNIQUE REFERENCES households(id) ON DELETE CASCADE,
+    created_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS meal_plans (
+    id           INTEGER PRIMARY KEY,
+    calendar_id  INTEGER NOT NULL REFERENCES calendars(id) ON DELETE CASCADE,
+    date         TEXT NOT NULL,
+    slot         TEXT NOT NULL CHECK (slot IN ('lunch', 'dinner')),
+    recipe_id    INTEGER REFERENCES recipes(id) ON DELETE SET NULL,
+    title        TEXT,
+    note         TEXT,
+    created_by   INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    UNIQUE (calendar_id, date, slot)
+  );
+
+  CREATE TABLE IF NOT EXISTS shopping_trips (
+    id           INTEGER PRIMARY KEY,
+    calendar_id  INTEGER NOT NULL REFERENCES calendars(id) ON DELETE CASCADE,
+    date         TEXT NOT NULL,
+    time         TEXT,
+    list_id      INTEGER REFERENCES shopping_lists(id) ON DELETE SET NULL,
+    note         TEXT,
+    created_by   INTEGER REFERENCES users(id) ON DELETE SET NULL
+  );
+`);
