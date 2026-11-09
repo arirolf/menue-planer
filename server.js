@@ -112,10 +112,13 @@ app.use('/api/admin/calendars', adminCalendarsRouter);
 
 // ---------- Recipes ----------
 
-// All recipes, including who doesn't like them
+// All recipes, including ingredient names and who doesn't like them
 app.get('/api/recipes', (req, res) => {
   const recipes = db
     .prepare('SELECT * FROM recipes ORDER BY name COLLATE NOCASE')
+    .all();
+  const ingredients = db
+    .prepare('SELECT recipe_id, name FROM ingredients ORDER BY id')
     .all();
   const dislikes = db
     .prepare(`
@@ -131,7 +134,9 @@ app.get('/api/recipes', (req, res) => {
       const forRecipe = dislikes.filter((d) => d.recipe_id === r.id);
       return {
         ...r,
+        ingredients: ingredients.filter((i) => i.recipe_id === r.id).map((i) => i.name),
         disliked_by: forRecipe.map((d) => d.username),
+        disliked_by_ids: forRecipe.map((d) => d.user_id),
         disliked_by_me: forRecipe.some((d) => d.user_id === req.user.id),
       };
     })

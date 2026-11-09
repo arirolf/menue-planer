@@ -1,6 +1,6 @@
 <script>
   import Login from './lib/Login.svelte';
-  import Randomizer from './lib/Randomizer.svelte';
+  import Planner from './lib/Planner.svelte';
   import RecipeList from './lib/RecipeList.svelte';
   import Calendar from './lib/Calendar.svelte';
   import Lists from './lib/Lists.svelte';
@@ -13,7 +13,7 @@
   let page = $state('roll');
 
   let tabs = $derived([
-    { id: 'roll', icon: '🎲', label: 'Würfeln' },
+    { id: 'roll', icon: '🍽️', label: 'Planen' },
     { id: 'recipes', icon: '📖', label: 'Rezepte' },
     { id: 'cal', icon: '📅', label: 'Kalender' },
     { id: 'shop', icon: '🛒', label: 'Einkauf' },
@@ -54,7 +54,7 @@
 
   <main>
     {#if page === 'roll'}
-      <Randomizer />
+      <Planner />
     {:else if page === 'recipes'}
       <RecipeList />
     {:else if page === 'cal'}
