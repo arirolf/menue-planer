@@ -37,6 +37,7 @@
 
   let targetListId = $state(null);
   let listMessage = $state('');
+  let pdfBusy = $state(false);
 
   let requestId = 0;
 
@@ -50,7 +51,7 @@
     const start = startOfWeek(monthFirst);
     return Array.from({ length: 42 }, (_, i) => {
       const d = addDays(start, i);
-      return { iso: toISO(d), day: d.getDate(), inMonth: d.getMonth() === monthFirst.getMonth() };
+      return { iso: toISO(d), inMonth: d.getMonth() === monthFirst.getMonth() };
     });
   });
 
@@ -134,7 +135,6 @@
     if (calendarId) loadEntries(calendarId, range.from, range.to);
   }
 
-  // Reload automatically when the calendar or the visible range changes
   $effect(() => {
     reload();
   });
@@ -143,8 +143,12 @@
 
   function move(step) {
     listMessage = '';
-    if (view === 'week') anchor = addDays(anchor, step * 7);
-    else anchor = new Date(anchor.getFullYear(), anchor.getMonth() + step, 1);
+    if (view === 'week') {
+      anchor = addDays(anchor, step * 7);
+      selectedDay = toISO(addDays(fromISO(selectedDay), step * 7));
+    } else {
+      anchor = new Date(anchor.getFullYear(), anchor.getMonth() + step, 1);
+    }
   }
 
   function goToday() {
@@ -154,10 +158,11 @@
   }
 
   function setView(newView) {
+    if (newView === view) return;
     listMessage = '';
-    if (newView === 'week' && view === 'month' && selectedVisible) {
-      anchor = fromISO(selectedDay);
-    }
+    // keep the selected day, so switching views stays in the same place
+    if (!selectedVisible) selectedDay = toISO(view === 'month' ? monthFirst : weekStart);
+    anchor = fromISO(selectedDay);
     view = newView;
   }
 
@@ -202,8 +207,58 @@
     }
   }
 
+  // ---------- PDF ----------
+
+  async function downloadPdf() {
+    pdfBusy = true;
+    error = '';
+    try {
+      const year = monthFirst.getFullYear();
+      const month = monthFirst.getMonth();
+      const from = toISO(monthFirst);
+      const to = toISO(new Date(year, month + 1, 0));
+
+      const res = await fetch(`/api/calendars/${calendarId}/entries?from=${from}&to=${to}`);
+      if (!res.ok) throw new Error('PDF-Daten konnten nicht geladen werden');
+      const data = await res.json();
+
+      // Only load the PDF library when someone actually needs it
+      const { createMonthPdf } = await import('./pdf.js');
+      createMonthPdf({
+        calendarName: data.calendar.name,
+        year,
+        month,
+        meals: data.meals,
+        trips: data.trips,
+      });
+    } catch (e) {
+      error = e.message || 'PDF konnte nicht erstellt werden';
+    } finally {
+      pdfBusy = false;
+    }
+  }
+
   setup();
 </script>
+
+{#snippet dayCell(iso, inMonth, weekdayLabel)}
+  {@const entry = day(iso)}
+  <button
+    class="cell"
+    class:other={!inMonth}
+    class:today={iso === today}
+    class:selected={iso === selectedDay}
+    onclick={() => (selectedDay = iso)}
+  >
+    {#if weekdayLabel}<span class="cell-wd">{weekdayLabel}</span>{/if}
+    <span class="cell-day">{fromISO(iso).getDate()}</span>
+    <span class="dots">
+      {#if entry.lunch}<span class="dot lunch"></span>{/if}
+      {#if entry.dinner}<span class="dot dinner"></span>{/if}
+      {#if entry.trips.length > 0}<span class="dot trip-dot"></span>{/if}
+    </span>
+  </button>
+{/snippet}
 
 {#snippet dayCard(iso)}
   {@const d = fromISO(iso)}
@@ -273,48 +328,34 @@
     {#if error}<p class="error">{error}</p>{/if}
 
     {#if view === 'week'}
-      <div class="week">
-        {#each weekDays as iso (iso)}
-          {@render dayCard(iso)}
+      <div class="grid strip">
+        {#each weekDays as iso, i (iso)}
+          {@render dayCell(iso, true, WEEKDAYS[i])}
         {/each}
       </div>
     {:else}
-      <div class="month">
+      <div class="grid month">
         {#each WEEKDAYS as wd}
           <span class="wd">{wd}</span>
         {/each}
         {#each monthCells as cell (cell.iso)}
-          {@const entry = day(cell.iso)}
-          <button
-            class="cell"
-            class:other={!cell.inMonth}
-            class:today={cell.iso === today}
-            class:selected={cell.iso === selectedDay}
-            onclick={() => (selectedDay = cell.iso)}
-          >
-            <span class="cell-day">{cell.day}</span>
-            <span class="dots">
-              {#if entry.lunch}<span class="dot lunch"></span>{/if}
-              {#if entry.dinner}<span class="dot dinner"></span>{/if}
-              {#if entry.trips.length > 0}<span class="dot trip-dot"></span>{/if}
-            </span>
-          </button>
+          {@render dayCell(cell.iso, cell.inMonth, null)}
         {/each}
       </div>
+    {/if}
 
-      <p class="legend">
-        <span class="dot lunch"></span> Mittag
-        <span class="dot dinner"></span> Abend
-        <span class="dot trip-dot"></span> Einkauf
-      </p>
+    <p class="legend">
+      <span class="dot lunch"></span> Mittag
+      <span class="dot dinner"></span> Abend
+      <span class="dot trip-dot"></span> Einkauf
+    </p>
 
-      {#if selectedVisible}
-        {@render dayCard(selectedDay)}
-      {/if}
+    {#if selectedVisible}
+      {@render dayCard(selectedDay)}
     {/if}
 
     {#if lists.length > 0}
-      <section class="to-list">
+      <section class="box">
         <span class="label">Zutaten {listRange.label}</span>
         <div class="row">
           <select bind:value={targetListId}>
@@ -327,6 +368,10 @@
         {#if listMessage}<p class="success">{listMessage}</p>{/if}
       </section>
     {/if}
+
+    <button class="pdf-btn" onclick={downloadPdf} disabled={pdfBusy}>
+      {pdfBusy ? 'Erstelle PDF…' : `🖨️ ${MONTHS[monthFirst.getMonth()]} als PDF`}
+    </button>
   {/if}
 </div>
 
@@ -430,11 +475,91 @@
 
   .period { font-weight: 600; }
 
-  .week {
+  /* ----- Shared grid for week strip and month ----- */
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    padding: 10px;
+    background: var(--card);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+  }
+
+  .wd {
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--muted);
+    padding: 4px 0;
+  }
+
+  .cell {
+    aspect-ratio: 1;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    border: none;
+    border-radius: 12px;
+    background: none;
+    color: var(--text);
+    font: inherit;
+    cursor: pointer;
   }
+
+  .strip .cell {
+    aspect-ratio: auto;
+    min-height: 76px;
+  }
+
+  .cell-wd {
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  .cell-day { font-size: 1.05rem; }
+
+  .cell.other { opacity: 0.35; }
+
+  .cell.today .cell-day {
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .cell.selected { background: var(--tag); }
+
+  .dots {
+    display: flex;
+    gap: 3px;
+    min-height: 6px;
+  }
+
+  .dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+
+  .dot.lunch { background: #f2b134; }
+  .dot.dinner { background: var(--accent); }
+  .dot.trip-dot { background: var(--success); }
+
+  .legend {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin: 10px 0 16px;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  .legend .dot { margin-left: 8px; }
+
+  /* ----- Day details ----- */
 
   .day {
     background: var(--card);
@@ -539,77 +664,9 @@
 
   .add-trip:hover { background: var(--tag); }
 
-  .month {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 4px;
-    padding: 10px;
-    background: var(--card);
-    border-radius: 18px;
-    box-shadow: var(--shadow);
-  }
+  /* ----- Bottom actions ----- */
 
-  .wd {
-    text-align: center;
-    font-size: 0.75rem;
-    color: var(--muted);
-    padding: 4px 0;
-  }
-
-  .cell {
-    aspect-ratio: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    border: none;
-    border-radius: 12px;
-    background: none;
-    color: var(--text);
-    font: inherit;
-    cursor: pointer;
-  }
-
-  .cell.other { opacity: 0.35; }
-
-  .cell.today .cell-day {
-    color: var(--accent);
-    font-weight: 700;
-  }
-
-  .cell.selected { background: var(--tag); }
-
-  .dots {
-    display: flex;
-    gap: 3px;
-    min-height: 6px;
-  }
-
-  .dot {
-    display: inline-block;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-  }
-
-  .dot.lunch { background: #f2b134; }
-  .dot.dinner { background: var(--accent); }
-  .dot.trip-dot { background: var(--success); }
-
-  .legend {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    margin: 10px 0 16px;
-    font-size: 0.8rem;
-    color: var(--muted);
-  }
-
-  .legend .dot { margin-left: 8px; }
-
-  .to-list {
+  .box {
     margin-top: 24px;
     padding: 16px;
     background: var(--card);
@@ -628,8 +685,28 @@
     font-size: 1rem;
   }
 
-  .to-list .success {
+  .box .success {
     margin: 10px 0 0;
     text-align: center;
   }
+
+  .pdf-btn {
+    width: 100%;
+    margin-top: 16px;
+    padding: 14px;
+    border: 2px solid var(--text);
+    border-radius: 999px;
+    background: none;
+    color: var(--text);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .pdf-btn:hover:not(:disabled) {
+    background: var(--text);
+    color: var(--bg);
+  }
+
+  .pdf-btn:disabled { opacity: 0.5; cursor: wait; }
 </style>
