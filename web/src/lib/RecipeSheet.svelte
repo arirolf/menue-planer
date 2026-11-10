@@ -21,6 +21,8 @@
   // Kept when rolling again, the family size doesn't change between recipes
   let servings = $state(BASE_SERVINGS);
   let addedMessage = $state('');
+  // Shown on the list items; filled in automatically after planning it in the calendar
+  let listDate = $state('');
 
   async function load(id) {
     error = '';
@@ -47,11 +49,12 @@
       const res = await fetch(`/api/calendars/${planCalendarId}/meals`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: planDate, slot: planSlot, recipe_id: recipe.id }),
+        body: JSON.stringify({ date: planDate, slot: planSlot, recipe_id: recipe.id, servings }),
       });
       if (res.status === 409) throw new Error(t('sheet.slotTaken'));
       if (!res.ok) throw new Error(t('common.tryAgain'));
       planOk = true;
+      listDate = planDate;
       planMessage = t('sheet.planned', { when: `${formatShort(planDate)} · ${slotLabel(planSlot)}` });
     } catch (e) {
       planOk = false;
@@ -65,7 +68,7 @@
       const res = await fetch(`/api/lists/${targetListId}/from-recipe/${recipe.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ servings }),
+        body: JSON.stringify({ servings, planned_date: listDate || null }),
       });
       if (!res.ok) throw new Error();
       const data = await res.json();
@@ -138,6 +141,10 @@
             <option value={l.id}>{l.household_id ? '🏠' : '📝'} {l.name}</option>
           {/each}
         </select>
+        <label class="date-field">
+          <span>{t('sheet.listDate')}</span>
+          <input type="date" bind:value={listDate} />
+        </label>
         <button class="action-btn" onclick={addToList}>{t('sheet.addToList')}</button>
         {#if addedMessage}<p class="message ok">{addedMessage}</p>{/if}
       </div>
@@ -216,6 +223,17 @@
 
   .spaced { margin-bottom: 8px; }
 
+  .date-field {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .date-field input { flex: 1; min-width: 0; }
+
   .action-btn {
     width: 100%;
     padding: 14px;
@@ -231,7 +249,7 @@
 
   .action-btn:hover {
     background: var(--accent);
-    color: white;
+    color: var(--on-accent);
   }
 
   .message {

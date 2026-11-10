@@ -2,6 +2,8 @@
   import { fly, fade } from 'svelte/transition';
   import { slotLabel, formatShort } from './dates.js';
   import { t } from './i18n.svelte.js';
+  import { BASE_SERVINGS } from '../../../shared/scale.js';
+  import ServingsPicker from './ServingsPicker.svelte';
 
   let { calendarId, date, slot, meal = null, recipes = [], onclose, onsaved } = $props();
 
@@ -10,6 +12,7 @@
   let recipeId = $state(meal?.recipe_id ?? '');
   let title = $state(meal && !meal.recipe_id ? (meal.title ?? '') : '');
   let note = $state(meal?.note ?? '');
+  let servings = $state(meal?.servings ?? BASE_SERVINGS);
   let newDate = $state(date);
   let newSlot = $state(slot);
   let saving = $state(false);
@@ -37,6 +40,7 @@
           recipe_id: recipeId ? Number(recipeId) : null,
           title: recipeId ? null : title,
           note,
+          servings,
         }),
       });
       if (res.status === 409) throw new Error(t('meal.slotTaken'));
@@ -77,7 +81,11 @@
     </select>
   </div>
 
-  {#if !recipeId}
+  {#if recipeId}
+    <div class="field">
+      <ServingsPicker bind:servings />
+    </div>
+  {:else}
     <div class="field">
       <label class="label" for="title">{t('meal.ownText')}</label>
       <input id="title" type="text" bind:value={title} placeholder={t('meal.titlePlaceholder')} />

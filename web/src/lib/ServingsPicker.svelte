@@ -11,8 +11,9 @@
 
   const CHOICES = [BASE_SERVINGS, ...PRESET_SERVINGS];
 
-  // Typed-in number of people; null while the field is empty
-  let custom = $state(null);
+  // Typed-in number of people; null while the field is empty.
+  // Starts filled when editing something saved with e.g. 5 people.
+  let custom = $state(CHOICES.includes(servings) ? null : servings);
   let usingCustom = $derived(custom != null && custom !== '');
 
   function pick(n) {

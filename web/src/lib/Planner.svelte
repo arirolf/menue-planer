@@ -299,7 +299,7 @@
     border: none;
     border-radius: 999px;
     background: var(--accent);
-    color: white;
+    color: var(--on-accent);
     font: inherit;
     font-size: 1.15rem;
     font-weight: 600;

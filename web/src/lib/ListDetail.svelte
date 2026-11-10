@@ -1,5 +1,6 @@
 <script>
   import { t } from './i18n.svelte.js';
+  import { formatShort } from './dates.js';
   let { id, currentUser, onback } = $props();
 
   let list = $state(null);
@@ -178,6 +179,23 @@
   load();
 </script>
 
+<!-- Where an item came from: recipe, which day, how many people -->
+{#snippet source(item)}
+  {#if item.recipe_name || item.planned_date || item.servings}
+    <span class="source">
+      {#if item.recipe_name}<span>🍽️ {item.recipe_name}</span>{/if}
+      {#if item.planned_date}
+        <span class="pill" title={t('list.plannedFor', { date: formatShort(item.planned_date) })}>
+          📅 {formatShort(item.planned_date)}
+        </span>
+      {/if}
+      {#if item.servings}
+        <span class="pill" title={t('list.peopleCount', { n: item.servings })}>👥 {item.servings}</span>
+      {/if}
+    </span>
+  {/if}
+{/snippet}
+
 <div class="page">
   <div class="topline">
     <button class="back" onclick={onback}>{t('list.all')}</button>
@@ -277,7 +295,7 @@
               <span class="text">
                 {#if item.amount}<span class="qty">{item.amount}</span>{/if}
                 {item.name}
-                {#if item.recipe_name}<span class="source">🍽️ {item.recipe_name}</span>{/if}
+                {@render source(item)}
               </span>
               <button class="delete" onclick={() => removeItem(item)} aria-label={t('common.delete')}>✕</button>
             </li>
@@ -297,7 +315,7 @@
               <span class="text">
                 {#if item.amount}<span class="qty">{item.amount}</span>{/if}
                 {item.name}
-                {#if item.recipe_name}<span class="source">🍽️ {item.recipe_name}</span>{/if}
+                {@render source(item)}
               </span>
               <button class="delete" onclick={() => removeItem(item)} aria-label={t('common.delete')}>✕</button>
             </li>
@@ -394,7 +412,7 @@
     border: none;
     border-radius: 12px;
     background: var(--accent);
-    color: white;
+    color: var(--on-accent);
     font-size: 1.5rem;
     cursor: pointer;
   }
@@ -495,10 +513,20 @@
     font-size: 0.9rem;
     cursor: pointer;
   }
-  
-    .source {
-    display: block;
-    margin-top: 2px;
+
+  .pill {
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--tag);
+    white-space: nowrap;
+  }
+
+  .source {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    margin-top: 3px;
     font-size: 0.78rem;
     color: var(--muted);
   }

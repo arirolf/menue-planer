@@ -1,6 +1,7 @@
 import express from 'express';
-import { db } from './db.js';
+import { db, transaction } from './db.js';
 import { requireAdmin } from './auth.js';
+import { BASE_SERVINGS, amountFor, isValidServings } from './shared/scale.js';
 
 const router = express.Router();
 export const adminRouter = express.Router();
@@ -13,7 +14,7 @@ const MAX_RANGE_DAYS = 62;
 // ---------- Helpers ----------
 
 // Accepts only real dates: "2026-02-30" gets rejected
-function isValidDate(text) {
+export function isValidDate(text) {
   if (typeof text !== 'string' || !DATE_PATTERN.test(text)) return false;
   const d = new Date(`${text}T00:00:00Z`);
   return !Number.isNaN(d.getTime()) && d.toISOString().startsWith(text);
@@ -73,7 +74,9 @@ function validateMeal(body) {
   if (!recipe && !title && !note) {
     return { error: 'Pick a recipe, write a title or add a note' };
   }
-  return { meal: { date, slot, recipeId: recipe?.id ?? null, title, note } };
+  const servings = body.servings ?? BASE_SERVINGS;
+  if (!isValidServings(servings)) return { error: 'servings must be a whole number from 1 to 99' };
+  return { meal: { date, slot, recipeId: recipe?.id ?? null, title, note, servings } };
 }
 
 function validateTrip(body, userId) {
@@ -147,7 +150,7 @@ router.get('/:id/entries', loadCalendar, (req, res) => {
 
   const meals = db
     .prepare(`
-      SELECT m.id, m.date, m.slot, m.recipe_id, m.note,
+      SELECT m.id, m.date, m.slot, m.recipe_id, m.note, m.servings,
              COALESCE(r.name, m.title) AS title,
              r.time_range, r.difficulty
       FROM meal_plans m
@@ -181,10 +184,13 @@ router.post('/:id/meals', loadCalendar, (req, res) => {
 
   const r = db
     .prepare(`
-      INSERT INTO meal_plans (calendar_id, date, slot, recipe_id, title, note, created_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO meal_plans (calendar_id, date, slot, recipe_id, title, note, servings, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `)
-    .run(req.calendar.id, meal.date, meal.slot, meal.recipeId, meal.title, meal.note, req.user.id);
+    .run(
+      req.calendar.id, meal.date, meal.slot, meal.recipeId,
+      meal.title, meal.note, meal.servings, req.user.id
+    );
   res.status(201).json({ id: Number(r.lastInsertRowid) });
 });
 
@@ -203,9 +209,9 @@ router.put('/:id/meals/:mealId', loadCalendar, (req, res) => {
   }
 
   db.prepare(`
-    UPDATE meal_plans SET date = ?, slot = ?, recipe_id = ?, title = ?, note = ?
+    UPDATE meal_plans SET date = ?, slot = ?, recipe_id = ?, title = ?, note = ?, servings = ?
     WHERE id = ?
-  `).run(meal.date, meal.slot, meal.recipeId, meal.title, meal.note, mealId);
+  `).run(meal.date, meal.slot, meal.recipeId, meal.title, meal.note, meal.servings, mealId);
   res.json({ ok: true });
 });
 
@@ -265,17 +271,34 @@ router.post('/:id/to-list', loadCalendar, (req, res) => {
     return res.status(404).json({ error: 'List not found' });
   }
 
-  const r = db
+  // Each meal's ingredients, scaled to how many people eat that meal
+  const rows = db
     .prepare(`
-      INSERT INTO list_items (list_id, name, amount, added_by, recipe_id, recipe_name)
-      SELECT ?, i.name, i.amount, ?, r.id, r.name
+      SELECT i.name, i.amount, i.amount_6, i.amount_8,
+             r.id AS recipe_id, r.name AS recipe_name, m.date, m.servings
       FROM meal_plans m
       JOIN recipes r ON r.id = m.recipe_id
       JOIN ingredients i ON i.recipe_id = r.id
       WHERE m.calendar_id = ? AND m.date BETWEEN ? AND ?
+      ORDER BY m.date, CASE m.slot WHEN 'lunch' THEN 0 ELSE 1 END, i.id
     `)
-    .run(listId, req.user.id, req.calendar.id, range.from, range.to);
-  res.status(201).json({ added: r.changes });
+    .all(req.calendar.id, range.from, range.to);
+  const decimal = req.user.language === 'en' ? '.' : ',';
+
+  const insert = db.prepare(`
+    INSERT INTO list_items
+      (list_id, name, amount, added_by, recipe_id, recipe_name, planned_date, servings)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  transaction(() => {
+    for (const row of rows) {
+      insert.run(
+        listId, row.name, amountFor(row, row.servings, { decimal }), req.user.id,
+        row.recipe_id, row.recipe_name, row.date, row.servings
+      );
+    }
+  });
+  res.status(201).json({ added: rows.length });
 });
 
 // ---------- Admin: create and manage calendars ----------

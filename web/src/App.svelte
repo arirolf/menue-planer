@@ -9,6 +9,7 @@
   import AdminCalendars from './lib/AdminCalendars.svelte';
   import Settings from './lib/Settings.svelte';
   import { t, setLanguage } from './lib/i18n.svelte.js';
+  import { applyColors } from './lib/theme.js';
 
   let user = $state(null);
   let checking = $state(true);
@@ -38,10 +39,11 @@
     }
   }
 
-  // Every time we get the user from the server, follow their language setting
+  // Every time we get the user from the server, follow their language and colors
   function setUser(u) {
     user = u;
     setLanguage(u.language);
+    applyColors(u);
   }
 
   function handleLogin(loggedInUser) {

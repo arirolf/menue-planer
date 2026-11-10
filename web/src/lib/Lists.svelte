@@ -171,7 +171,7 @@
     padding: 4px 10px;
     border-radius: 999px;
     background: var(--accent);
-    color: white;
+    color: var(--on-accent);
     font-weight: 600;
     text-align: center;
   }

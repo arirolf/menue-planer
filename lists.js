@@ -1,6 +1,7 @@
 import express from 'express';
 import { db, transaction } from './db.js';
 import { BASE_SERVINGS, amountFor, isValidServings } from './shared/scale.js';
+import { isValidDate } from './calendars.js';
 
 const router = express.Router();
 
@@ -78,7 +79,11 @@ router.get('/:id', loadList, (req, res) => {
   const list = req.list;
 
   list.items = db
-    .prepare('SELECT id, name, amount, checked, recipe_name FROM list_items WHERE list_id = ? ORDER BY checked, id')    .all(list.id)
+    .prepare(`
+      SELECT id, name, amount, checked, recipe_name, planned_date, servings
+      FROM list_items WHERE list_id = ? ORDER BY checked, id
+    `)
+    .all(list.id)
     .map((item) => ({ ...item, checked: item.checked === 1 }));
 
   list.members = list.household_id
@@ -202,11 +207,16 @@ router.delete('/:id/checked', loadList, (req, res) => {
 });
 
 // Copy a recipe's ingredients onto this list, tagged with the recipe.
-// Optional body { servings: 6 } scales the amounts (recipes are written for 4).
+// Optional body { servings: 6, planned_date: "2026-11-14" }: servings scales the
+// amounts (recipes are written for 4), both get shown on the items.
 router.post('/:id/from-recipe/:recipeId', loadList, (req, res) => {
   const servings = req.body?.servings ?? BASE_SERVINGS;
   if (!isValidServings(servings)) {
     return res.status(400).json({ error: 'servings must be a whole number from 1 to 99' });
+  }
+  const plannedDate = req.body?.planned_date ?? null;
+  if (plannedDate !== null && !isValidDate(plannedDate)) {
+    return res.status(400).json({ error: 'planned_date must be YYYY-MM-DD or null' });
   }
 
   const recipe = db
@@ -220,8 +230,9 @@ router.post('/:id/from-recipe/:recipeId', loadList, (req, res) => {
   const decimal = req.user.language === 'en' ? '.' : ',';
 
   const insert = db.prepare(`
-    INSERT INTO list_items (list_id, name, amount, added_by, recipe_id, recipe_name)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO list_items
+      (list_id, name, amount, added_by, recipe_id, recipe_name, planned_date, servings)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
   transaction(() => {
     for (const ing of ingredients) {
@@ -231,7 +242,9 @@ router.post('/:id/from-recipe/:recipeId', loadList, (req, res) => {
         amountFor(ing, servings, { decimal }),
         req.user.id,
         recipe.id,
-        recipe.name
+        recipe.name,
+        plannedDate,
+        servings
       );
     }
   });

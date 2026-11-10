@@ -291,7 +291,7 @@
 
   .badge.me {
     background: var(--accent);
-    color: white;
+    color: var(--on-accent);
   }
 
   .meta {

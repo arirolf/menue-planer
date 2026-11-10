@@ -76,6 +76,18 @@ function saveIngredients(recipeId, ingredients) {
   }
 }
 
+// What the web app gets to know about the logged-in user
+function publicUser(u) {
+  return {
+    id: u.id,
+    username: u.username,
+    language: u.language,
+    is_admin: u.is_admin === 1,
+    color_main: u.color_main ?? null,
+    color_secondary: u.color_secondary ?? null,
+  };
+}
+
 // ---------- Auth (public) ----------
 
 app.post('/api/auth/login', (req, res) => {
@@ -94,12 +106,7 @@ app.post('/api/auth/login', (req, res) => {
     secure: process.env.NODE_ENV === 'production',
     expires: new Date(expiresAt),
   });
-  res.json({
-    id: user.id,
-    username: user.username,
-    language: user.language,
-    is_admin: user.is_admin === 1,
-  });
+  res.json(publicUser(user));
 });
 
 // ---------- Everything below requires a login ----------
@@ -112,21 +119,33 @@ app.get('/api/auth/me', (req, res) => {
 
 // Personal settings of the logged-in user. Only the fields sent get changed.
 const LANGUAGES = ['de', 'en'];
+const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 
 app.patch('/api/auth/me', (req, res) => {
-  const { language } = req.body ?? {};
+  const body = req.body ?? {};
+  const changes = {};
 
-  if (language !== undefined) {
-    if (!LANGUAGES.includes(language)) {
+  if (body.language !== undefined) {
+    if (!LANGUAGES.includes(body.language)) {
       return res.status(400).json({ error: 'language must be de or en' });
     }
-    db.prepare('UPDATE users SET language = ? WHERE id = ?').run(language, req.user.id);
+    changes.language = body.language;
+  }
+  // null = back to the default color
+  for (const key of ['color_main', 'color_secondary']) {
+    if (body[key] === undefined) continue;
+    if (body[key] !== null && !HEX_COLOR.test(body[key])) {
+      return res.status(400).json({ error: `${key} must be like #ff6b35 or null` });
+    }
+    changes[key] = body[key]?.toLowerCase() ?? null;
   }
 
-  const user = db
-    .prepare('SELECT id, username, language, is_admin FROM users WHERE id = ?')
-    .get(req.user.id);
-  res.json({ ...user, is_admin: user.is_admin === 1 });
+  // Column names come from the fixed list above, never from the request
+  for (const [key, value] of Object.entries(changes)) {
+    db.prepare(`UPDATE users SET ${key} = ? WHERE id = ?`).run(value, req.user.id);
+  }
+
+  res.json(publicUser(db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id)));
 });
 
 app.post('/api/auth/logout', (req, res) => {

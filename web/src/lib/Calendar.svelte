@@ -278,7 +278,12 @@
         <span class="slot-label">{slotLabel(slot)}</span>
         {#if meal}
           <span class="slot-body">
-            {#if meal.title}<span class="meal-title">{meal.title}</span>{/if}
+            {#if meal.title}
+              <span class="meal-title">
+                {meal.title}
+                {#if meal.recipe_id}<span class="meal-servings">👥 {meal.servings}</span>{/if}
+              </span>
+            {/if}
             {#if meal.note}<span class="meal-note">💬 {meal.note}</span>{/if}
           </span>
         {:else}
@@ -544,6 +549,14 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
+  }
+
+  .meal-servings {
+    margin-left: 6px;
+    font-size: 0.78rem;
+    font-weight: normal;
+    color: var(--muted);
+    white-space: nowrap;
   }
 
   .dot.lunch { background: #f2b134; }

@@ -57,7 +57,7 @@ export function getSessionUser(token) {
   if (!token) return null;
   const user = db
     .prepare(`
-      SELECT u.id, u.username, u.language, u.is_admin
+      SELECT u.id, u.username, u.language, u.is_admin, u.color_main, u.color_secondary
       FROM sessions s
       JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = ? AND s.expires_at > ?

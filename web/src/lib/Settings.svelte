@@ -1,5 +1,7 @@
 <script>
   import { t } from './i18n.svelte.js';
+  import { MAIN_PRESETS, SECONDARY_PRESETS } from './theme.js';
+  import ColorPicker from './ColorPicker.svelte';
 
   let { user, onsave, onback } = $props();
 
@@ -54,6 +56,26 @@
     </div>
   </section>
 
+  <section class="card">
+    <span class="label section">{t('settings.colors')}</span>
+    <ColorPicker
+      label={t('settings.mainColor')}
+      hint={t('settings.mainColorHint')}
+      value={user.color_main}
+      presets={MAIN_PRESETS}
+      disabled={saving}
+      onpick={(c) => save({ color_main: c })}
+    />
+    <ColorPicker
+      label={t('settings.secondaryColor')}
+      hint={t('settings.secondaryColorHint')}
+      value={user.color_secondary}
+      presets={SECONDARY_PRESETS}
+      disabled={saving}
+      onpick={(c) => save({ color_secondary: c })}
+    />
+  </section>
+
   {#if error}<p class="error">{error}</p>{/if}
   {#if saved}<p class="success">{t('settings.saved')}</p>{/if}
 </div>
@@ -86,6 +108,12 @@
     padding: 20px;
     border-radius: 20px;
     box-shadow: var(--shadow);
+    margin-bottom: 16px;
+  }
+
+  .section {
+    font-size: 0.95rem;
+    color: var(--text);
     margin-bottom: 16px;
   }
 

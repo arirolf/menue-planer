@@ -143,3 +143,25 @@ if (!ingredientColumns.some((c) => c.name === 'amount_6')) {
     ALTER TABLE ingredients ADD COLUMN amount_8 TEXT;
   `);
 }
+
+// ---------- When and for how many people ----------
+// meal_plans.servings: people eating that meal. list_items: copied from the meal / recipe popup.
+const mealColumns = db.prepare('PRAGMA table_info(meal_plans)').all();
+if (!mealColumns.some((c) => c.name === 'servings')) {
+  db.exec('ALTER TABLE meal_plans ADD COLUMN servings INTEGER NOT NULL DEFAULT 4');
+}
+const listItemColumns = db.prepare('PRAGMA table_info(list_items)').all();
+if (!listItemColumns.some((c) => c.name === 'planned_date')) {
+  db.exec(`
+    ALTER TABLE list_items ADD COLUMN planned_date TEXT;
+    ALTER TABLE list_items ADD COLUMN servings INTEGER;
+  `);
+}
+
+// ---------- Personal colors (hex like "#ff6b35", NULL = default) ----------
+if (!db.prepare('PRAGMA table_info(users)').all().some((c) => c.name === 'color_main')) {
+  db.exec(`
+    ALTER TABLE users ADD COLUMN color_main TEXT;
+    ALTER TABLE users ADD COLUMN color_secondary TEXT;
+  `);
+}

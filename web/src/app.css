@@ -1,10 +1,12 @@
 :root {
-  --bg: #faf7f2;
+  --bg-base: #faf7f2;
+  --bg: var(--bg-base);
   --card: #ffffff;
   --text: #2b2420;
   --muted: #8a7f78;
   --accent: #ff6b35;
   --accent-hover: #e85a26;
+  --on-accent: #ffffff; /* text on top of --accent */
   --tag: #f3ece4;
   --shadow: 0 8px 30px rgba(60, 40, 20, 0.08);
   --error: #d64545;
@@ -17,7 +19,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #1a1714;
+    --bg-base: #1a1714;
     --card: #26211d;
     --text: #f3ece4;
     --muted: #a39890;
@@ -42,7 +44,7 @@ body {
   border: none;
   border-radius: 999px;
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
   cursor: pointer;
   transition: transform 0.15s, background 0.15s;
 }
@@ -70,7 +72,7 @@ body {
 .chip.active {
   background: var(--accent);
   border-color: var(--accent);
-  color: white;
+  color: var(--on-accent);
 }
 
 /* Input fields */

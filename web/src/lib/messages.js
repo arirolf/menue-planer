@@ -83,6 +83,17 @@ export default {
   'settings.title': { de: '⚙️ Einstellungen', en: '⚙️ Settings' },
   'settings.language': { de: 'Sprache', en: 'Language' },
   'settings.saved': { de: 'Gespeichert ✓', en: 'Saved ✓' },
+  'settings.colors': { de: '🎨 Farben', en: '🎨 Colors' },
+  'settings.mainColor': { de: 'Hauptfarbe', en: 'Main color' },
+  'settings.mainColorHint': { de: 'Knöpfe und Markierungen', en: 'Buttons and highlights' },
+  'settings.secondaryColor': { de: 'Zweitfarbe', en: 'Secondary color' },
+  'settings.secondaryColorHint': { de: 'Hintergrund und Flächen', en: 'Background and surfaces' },
+  'settings.default': { de: 'Standard', en: 'Default' },
+  'settings.customColor': { de: '🎛️ Eigene Farbe', en: '🎛️ Custom color' },
+  'settings.red': { de: 'Rot', en: 'Red' },
+  'settings.green': { de: 'Grün', en: 'Green' },
+  'settings.blue': { de: 'Blau', en: 'Blue' },
+  'settings.apply': { de: 'Übernehmen', en: 'Apply' },
 
   // ---------- Login ----------
   'login.subtitle': { de: 'Bitte melde dich an', en: 'Please sign in' },
@@ -165,6 +176,7 @@ export default {
   'sheet.slotTaken': { de: 'Da ist schon etwas geplant 📅', en: 'Something is already planned there 📅' },
   'sheet.planned': { de: '✓ Eingeplant: {when}', en: '✓ Planned: {when}' },
   'sheet.toList': { de: '🛒 Zutaten auf Liste', en: '🛒 Ingredients to list' },
+  'sheet.listDate': { de: '📅 Für wann? (optional)', en: '📅 For when? (optional)' },
   'sheet.addToList': { de: '🛒 Hinzufügen', en: '🛒 Add' },
   'sheet.reroll': { de: '🎲 Nochmal', en: '🎲 Again' },
 
@@ -260,6 +272,8 @@ export default {
   },
   'list.check': { de: 'Abhaken', en: 'Check off' },
   'list.uncheck': { de: 'Zurücksetzen', en: 'Uncheck' },
+  'list.plannedFor': { de: 'Geplant für {date}', en: 'Planned for {date}' },
+  'list.peopleCount': { de: '{n} Personen', en: '{n} people' },
   'list.inBasket': { de: 'Im Korb ({n})', en: 'In the basket ({n})' },
   'list.clear': { de: 'Aufräumen', en: 'Clear' },
 
