@@ -2,6 +2,7 @@
   import { fly, fade } from 'svelte/transition';
   import { formatShort } from './dates.js';
   import { t } from './i18n.svelte.js';
+  import NoteRows from './NoteRows.svelte';
 
   let { calendarId, date, trip = null, lists = [], onclose, onsaved } = $props();
 
@@ -79,7 +80,7 @@
 
   <div class="field">
     <label class="label" for="trip-note">{t('common.note')}</label>
-    <textarea id="trip-note" bind:value={note} placeholder={t('trip.notePlaceholder')}></textarea>
+    <NoteRows id="trip-note" bind:value={note} placeholder={t('trip.notePlaceholder')} />
   </div>
 
   {#if error}<p class="error">{error}</p>{/if}

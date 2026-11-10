@@ -41,6 +41,24 @@
   let listMessage = $state('');
   let pdfBusy = $state(false);
 
+  // PDF period: 'week1', 'week2' or 'month', remembered on this device
+  const PDF_RANGE_KEY = 'menu_pdf_range';
+  let pdfRange = $state(loadPdfRange());
+
+  function loadPdfRange() {
+    try {
+      const saved = localStorage.getItem(PDF_RANGE_KEY);
+      if (['week1', 'week2', 'month'].includes(saved)) return saved;
+    } catch {}
+    return 'month';
+  }
+
+  function savePdfRange() {
+    try {
+      localStorage.setItem(PDF_RANGE_KEY, pdfRange);
+    } catch {}
+  }
+
   let requestId = 0;
 
   // ---------- Which days are visible ----------
@@ -212,28 +230,39 @@
 
   // ---------- PDF ----------
 
+  // Week exports start at the shown week; in month view at the selected day
+  // if it is in that month, otherwise at the start of the month
+  function pdfStart() {
+    if (view === 'week') return weekStart;
+    const sel = fromISO(selectedDay);
+    return sel.getMonth() === monthFirst.getMonth() && sel.getFullYear() === monthFirst.getFullYear()
+      ? sel
+      : monthFirst;
+  }
+
   async function downloadPdf() {
     pdfBusy = true;
     error = '';
     try {
       const year = monthFirst.getFullYear();
       const month = monthFirst.getMonth();
-      const from = toISO(monthFirst);
-      const to = toISO(new Date(year, month + 1, 0));
+      const weeks = pdfRange === 'week2' ? 2 : 1;
+      const start = startOfWeek(pdfStart());
+      const from = pdfRange === 'month' ? toISO(monthFirst) : toISO(start);
+      const to =
+        pdfRange === 'month'
+          ? toISO(new Date(year, month + 1, 0))
+          : toISO(addDays(start, weeks * 7 - 1));
 
       const res = await fetch(`/api/calendars/${calendarId}/entries?from=${from}&to=${to}`);
       if (!res.ok) throw new Error(t('cal.pdfDataFailed'));
       const data = await res.json();
 
       // Only load the PDF library when someone actually needs it
-      const { createMonthPdf } = await import('./pdf.js');
-      createMonthPdf({
-        calendarName: data.calendar.name,
-        year,
-        month,
-        meals: data.meals,
-        trips: data.trips,
-      });
+      const { createMonthPdf, createWeeksPdf } = await import('./pdf.js');
+      const common = { calendarName: data.calendar.name, meals: data.meals, trips: data.trips };
+      if (pdfRange === 'month') createMonthPdf({ ...common, year, month });
+      else createWeeksPdf({ ...common, start, weeks });
     } catch (e) {
       error = e.message || t('cal.pdfFailed');
     } finally {
@@ -284,7 +313,7 @@
                 {#if meal.recipe_id}<span class="meal-servings">👥 {meal.servings}</span>{/if}
               </span>
             {/if}
-            {#if meal.note}<span class="meal-note">💬 {meal.note}</span>{/if}
+            {#each (meal.note ?? '').split('\n').filter(Boolean) as line}<span class="meal-note">💬 {line}</span>{/each}
           </span>
         {:else}
           <span class="slot-add">{t('cal.planSlot')}</span>
@@ -295,7 +324,7 @@
     {#each entry.trips as trip (trip.id)}
       <button class="trip" onclick={() => openTrip(iso, trip)}>
         <span>🛒 {trip.time ? `${trip.time} · ` : ''}{t('cal.shopping')}{trip.list_name ? ` · ${trip.list_name}` : ''}</span>
-        {#if trip.note}<span class="meal-note">💬 {trip.note}</span>{/if}
+        {#each (trip.note ?? '').split('\n').filter(Boolean) as line}<span class="meal-note">💬 {line}</span>{/each}
       </button>
     {/each}
 
@@ -377,9 +406,16 @@
       </section>
     {/if}
 
-    <button class="pdf-btn" onclick={downloadPdf} disabled={pdfBusy}>
-      {pdfBusy ? t('cal.pdfBusy') : t('cal.pdfButton', { month: months()[monthFirst.getMonth()] })}
-    </button>
+    <div class="pdf-row">
+      <select bind:value={pdfRange} onchange={savePdfRange} aria-label={t('cal.pdfRange')}>
+        <option value="week1">{t('cal.pdfWeek1')}</option>
+        <option value="week2">{t('cal.pdfWeek2')}</option>
+        <option value="month">{t('cal.pdfMonth', { month: months()[monthFirst.getMonth()] })}</option>
+      </select>
+      <button class="pdf-btn" onclick={downloadPdf} disabled={pdfBusy}>
+        {pdfBusy ? t('cal.pdfBusy') : t('cal.pdfButton')}
+      </button>
+    </div>
   {/if}
 </div>
 
@@ -706,9 +742,19 @@
     text-align: center;
   }
 
-  .pdf-btn {
-    width: 100%;
+  .pdf-row {
+    display: flex;
+    gap: 8px;
     margin-top: 16px;
+  }
+
+  .pdf-row select {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .pdf-btn {
+    flex-shrink: 0;
     padding: 14px;
     border: 2px solid var(--text);
     border-radius: 999px;

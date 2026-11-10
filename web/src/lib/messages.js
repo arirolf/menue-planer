@@ -29,6 +29,8 @@ export default {
   'common.effort': { de: 'Aufwand', en: 'Effort' },
   'common.ingredients': { de: 'Zutaten', en: 'Ingredients' },
   'common.note': { de: 'Info (optional)', en: 'Note (optional)' },
+  'note.addRow': { de: '+ Weitere Zeile', en: '+ Add line' },
+  'note.removeRow': { de: 'Zeile entfernen', en: 'Remove line' },
   'common.confirmDelete': { de: '„{name}" wirklich löschen?', en: 'Really delete "{name}"?' },
   'common.ingredientsAdded': {
     de: '✓ {n} Zutaten auf „{list}"',
@@ -214,7 +216,11 @@ export default {
     de: 'Keine Rezepte mit Zutaten in diesem Zeitraum',
     en: 'No recipes with ingredients in this period',
   },
-  'cal.pdfButton': { de: '🖨️ {month} als PDF', en: '🖨️ {month} as PDF' },
+  'cal.pdfButton': { de: '🖨️ Als PDF', en: '🖨️ As PDF' },
+  'cal.pdfRange': { de: 'Zeitraum für PDF', en: 'PDF period' },
+  'cal.pdfWeek1': { de: '1 Woche', en: '1 week' },
+  'cal.pdfWeek2': { de: '2 Wochen', en: '2 weeks' },
+  'cal.pdfMonth': { de: 'Monat ({month})', en: 'Month ({month})' },
   'cal.pdfBusy': { de: 'Erstelle PDF…', en: 'Creating PDF…' },
   'cal.pdfDataFailed': { de: 'PDF-Daten konnten nicht geladen werden', en: "Couldn't load PDF data" },
   'cal.pdfFailed': { de: 'PDF konnte nicht erstellt werden', en: "Couldn't create PDF" },
@@ -354,6 +360,10 @@ export default {
 
   // ---------- PDF (plain Latin-1 text only, no emoji) ----------
   'pdf.title': { de: 'Menüplan {month} {year}', en: 'Meal plan {month} {year}' },
+  'pdf.titleWeeks': {
+    de: 'Menüplan KW {weeks} · {from} – {to}',
+    en: 'Meal plan week {weeks} · {from} – {to}',
+  },
   'pdf.lunchLetter': { de: 'M', en: 'L' },
   'pdf.dinnerLetter': { de: 'A', en: 'D' },
   'pdf.tripLetter': { de: 'E:', en: 'S:' },

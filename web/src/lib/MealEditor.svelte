@@ -2,6 +2,7 @@
   import { fly, fade } from 'svelte/transition';
   import { slotLabel, formatShort } from './dates.js';
   import { t } from './i18n.svelte.js';
+  import NoteRows from './NoteRows.svelte';
   import { BASE_SERVINGS } from '../../../shared/scale.js';
   import ServingsPicker from './ServingsPicker.svelte';
 
@@ -94,7 +95,7 @@
 
   <div class="field">
     <label class="label" for="note">{t('common.note')}</label>
-    <textarea id="note" bind:value={note} placeholder={t('meal.notePlaceholder')}></textarea>
+    <NoteRows id="note" bind:value={note} placeholder={t('meal.notePlaceholder')} />
   </div>
 
   {#if isEdit}

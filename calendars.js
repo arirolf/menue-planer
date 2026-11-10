@@ -34,6 +34,13 @@ function readRange(source) {
   return { from, to };
 }
 
+// Notes can have several rows, one per line
+function cleanNote(value) {
+  if (typeof value !== 'string') return null;
+  const text = value.split('\n').map((l) => l.trim()).filter(Boolean).join('\n').slice(0, 1000);
+  return text || null;
+}
+
 function cleanText(value, max) {
   if (typeof value !== 'string') return null;
   const text = value.trim().slice(0, max);
@@ -70,7 +77,7 @@ function validateMeal(body) {
 
   // Remember the recipe name too, so the entry survives if the recipe gets deleted
   const title = cleanText(body.title, 100) ?? recipe?.name ?? null;
-  const note = cleanText(body.note, 300);
+  const note = cleanNote(body.note);
   if (!recipe && !title && !note) {
     return { error: 'Pick a recipe, write a title or add a note' };
   }
@@ -99,7 +106,7 @@ function validateTrip(body, userId) {
     }
   }
 
-  return { trip: { date, time, listId, note: cleanText(body.note, 300) } };
+  return { trip: { date, time, listId, note: cleanNote(body.note) } };
 }
 
 function slotTaken(calendarId, date, slot, exceptId = 0) {
