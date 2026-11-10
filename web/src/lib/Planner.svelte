@@ -1,7 +1,7 @@
 <script>
   import { slide } from 'svelte/transition';
   import RecipeSheet from './RecipeSheet.svelte';
-  import { TIME_LABELS } from './constants.js';
+  import { TIME_LABELS, SPECIAL, effortLabel } from './constants.js';
   import { t } from './i18n.svelte.js';
 
   const EATERS_KEY = 'menu.eaters';
@@ -9,6 +9,7 @@
   // $derived so the labels follow the language
   let timeFilters = $derived([
     { value: 6, label: t('planner.any') },
+    { value: 1, label: '≤ 10 min' },
     { value: 2, label: '≤ 20 min' },
     { value: 3, label: '≤ 30 min' },
     { value: 5, label: '≤ 60 min' },
@@ -18,6 +19,7 @@
     { value: 3, label: t('planner.any') },
     { value: 1, label: '🔪' },
     { value: 2, label: '🔪🔪' },
+    { value: SPECIAL, label: t('effort.special') },
   ]);
 
   let recipes = $state([]);
@@ -43,7 +45,8 @@
     return recipes.filter(
       (r) =>
         r.time_range <= maxTime &&
-        r.difficulty <= maxDifficulty &&
+        // "Egal" (3) leaves out Sonntagsessen, the 🎉 chip shows only those
+        (maxDifficulty === SPECIAL ? r.difficulty === SPECIAL : r.difficulty <= maxDifficulty) &&
         !r.disliked_by_ids.some((id) => eaters.includes(id)) &&
         (!q ||
           r.name.toLowerCase().includes(q) ||
@@ -56,7 +59,8 @@
     const parts = [];
     if (eaters.length > 0) parts.push(`👥 ${eaters.length}`);
     if (maxTime < 6) parts.push(timeFilters.find((f) => f.value === maxTime).label);
-    if (maxDifficulty < 3) parts.push(`max ${'🔪'.repeat(maxDifficulty)}`);
+    if (maxDifficulty === SPECIAL) parts.push('🎉');
+    else if (maxDifficulty < 3) parts.push(`max ${'🔪'.repeat(maxDifficulty)}`);
     return parts.join(' · ');
   });
 
@@ -221,7 +225,7 @@
           <button class="result" onclick={() => open(r.id)}>
             <span class="text">
               <span class="name">{r.name}</span>
-              <span class="meta">⏱️ {TIME_LABELS[r.time_range]} · {'🔪'.repeat(r.difficulty)}</span>
+              <span class="meta">⏱️ {TIME_LABELS[r.time_range]} · {effortLabel(r.difficulty)}</span>
             </span>
             <span class="chevron">›</span>
           </button>

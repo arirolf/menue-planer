@@ -54,7 +54,8 @@ function validateRecipe(body) {
   const { name, time_range, difficulty, ingredients = [] } = body;
   if (!name || typeof name !== 'string' || !name.trim()) return 'Name is required';
   if (!Number.isInteger(time_range) || time_range < 1 || time_range > 6) return 'time_range must be 1-6';
-  if (!Number.isInteger(difficulty) || difficulty < 1 || difficulty > 3) return 'difficulty must be 1-3';
+  // 4 = "Sonntagsessen": takes all day, for special occasions
+  if (!Number.isInteger(difficulty) || difficulty < 1 || difficulty > 4) return 'difficulty must be 1-4';
   if (!Array.isArray(ingredients)) return 'ingredients must be a list';
   for (const ing of ingredients) {
     if (!ing || typeof ing.name !== 'string' || !ing.name.trim()) {
@@ -216,7 +217,8 @@ app.get('/api/recipes', (req, res) => {
   );
 });
 
-// One random recipe, filtered by time, difficulty and who is eating
+// One random recipe, filtered by time, difficulty and who is eating.
+// Default max 3 leaves out Sonntagsessen (4), like the "Egal" filter in the app.
 // IMPORTANT: must come BEFORE /api/recipes/:id
 app.get('/api/recipes/random', (req, res) => {
   const maxTime = Number(req.query.max_time) || 6;

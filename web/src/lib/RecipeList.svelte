@@ -1,5 +1,5 @@
 <script>
-  import { TIME_LABELS } from './constants.js';
+  import { TIME_LABELS, effortLabel } from './constants.js';
   import RecipeForm from './RecipeForm.svelte';
   import { t } from './i18n.svelte.js';
 
@@ -103,7 +103,7 @@
           <li class="item">
             <button class="info" onclick={() => edit(r.id)}>
               <span class="name">{r.name}</span>
-              <span class="meta">⏱️ {TIME_LABELS[r.time_range]} · {'🔪'.repeat(r.difficulty)}</span>
+              <span class="meta">⏱️ {TIME_LABELS[r.time_range]} · {effortLabel(r.difficulty)}</span>
               {#if r.disliked_by.length > 0}
                 <span class="dislikes">👎 {r.disliked_by.join(', ')}</span>
               {/if}

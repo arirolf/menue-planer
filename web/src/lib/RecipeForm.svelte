@@ -1,5 +1,5 @@
 <script>
-  import { TIME_LABELS } from './constants.js';
+  import { TIME_LABELS, DIFFICULTIES, effortLabel } from './constants.js';
   import { t, numberFormat } from './i18n.svelte.js';
   import { BASE_SERVINGS, PRESET_SERVINGS, suggestedAmount } from '../../../shared/scale.js';
 
@@ -122,14 +122,14 @@
     <div class="field">
       <span class="label">{t('common.effort')}</span>
       <div class="chips">
-        {#each [1, 2, 3] as level}
+        {#each DIFFICULTIES as level}
           <button
             type="button"
             class="chip"
             class:active={difficulty === level}
             onclick={() => (difficulty = level)}
           >
-            {'🔪'.repeat(level)}
+            {effortLabel(level)}
           </button>
         {/each}
       </div>

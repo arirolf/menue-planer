@@ -169,3 +169,41 @@ if (!db.prepare('PRAGMA table_info(users)').all().some((c) => c.name === 'color_
 if (!db.prepare('PRAGMA table_info(users)').all().some((c) => c.name === 'color_frame')) {
   db.exec('ALTER TABLE users ADD COLUMN color_frame TEXT');
 }
+
+// ---------- Difficulty 4 = "Sonntagsessen" (takes all day, special occasions) ----------
+// SQLite can't change a CHECK constraint, so the recipes table gets rebuilt once.
+// Foreign keys are off during the swap so ingredients, meals etc. keep pointing at the same ids.
+const recipesSql =
+  db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'recipes'").get()?.sql ?? '';
+if (recipesSql.includes('difficulty BETWEEN 1 AND 3')) {
+  const RECIPE_COLUMNS = ['id', 'name', 'time_range', 'difficulty', 'created_by', 'created_at'];
+  const actual = db.prepare('PRAGMA table_info(recipes)').all().map((c) => c.name);
+  if (actual.join() !== RECIPE_COLUMNS.join()) {
+    throw new Error(`recipes has unexpected columns (${actual.join()}), refusing to rebuild`);
+  }
+
+  db.exec('PRAGMA foreign_keys = OFF');
+  try {
+    transaction(() => {
+      db.exec(`
+        CREATE TABLE recipes_new (
+          id          INTEGER PRIMARY KEY,
+          name        TEXT NOT NULL,
+          time_range  INTEGER NOT NULL CHECK (time_range BETWEEN 1 AND 6),
+          difficulty  INTEGER NOT NULL CHECK (difficulty BETWEEN 1 AND 4),
+          created_by  INTEGER REFERENCES users(id) ON DELETE SET NULL,
+          created_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT INTO recipes_new (${RECIPE_COLUMNS.join(', ')})
+          SELECT ${RECIPE_COLUMNS.join(', ')} FROM recipes;
+        DROP TABLE recipes;
+        ALTER TABLE recipes_new RENAME TO recipes;
+      `);
+      if (db.prepare('PRAGMA foreign_key_check').all().length > 0) {
+        throw new Error('Broken references after rebuilding recipes');
+      }
+    });
+  } finally {
+    db.exec('PRAGMA foreign_keys = ON');
+  }
+}

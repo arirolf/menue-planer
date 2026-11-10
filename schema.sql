@@ -12,7 +12,7 @@ CREATE TABLE recipes (
   id          INTEGER PRIMARY KEY,
   name        TEXT NOT NULL,
   time_range  INTEGER NOT NULL CHECK (time_range BETWEEN 1 AND 6),
-  difficulty  INTEGER NOT NULL CHECK (difficulty BETWEEN 1 AND 3),
+  difficulty  INTEGER NOT NULL CHECK (difficulty BETWEEN 1 AND 4),
   created_by  INTEGER REFERENCES users(id) ON DELETE SET NULL,
   created_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

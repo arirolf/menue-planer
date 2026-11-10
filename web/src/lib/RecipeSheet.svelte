@@ -1,6 +1,6 @@
 <script>
   import { fly, fade } from 'svelte/transition';
-  import { TIME_LABELS } from './constants.js';
+  import { TIME_LABELS, effortLabel } from './constants.js';
   import { todayISO, formatShort, slotLabel } from './dates.js';
   import { t, numberFormat } from './i18n.svelte.js';
   import { BASE_SERVINGS, amountFor } from '../../../shared/scale.js';
@@ -93,7 +93,7 @@
 
     <div class="tags">
       <span class="tag">⏱️ {TIME_LABELS[recipe.time_range]}</span>
-      <span class="tag">{'🔪'.repeat(recipe.difficulty)}</span>
+      <span class="tag">{effortLabel(recipe.difficulty)}</span>
     </div>
 
     {#if recipe.ingredients.length > 0}

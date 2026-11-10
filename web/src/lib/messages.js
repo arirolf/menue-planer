@@ -118,7 +118,8 @@ export default {
   'planner.search': { de: '🔍 Rezept oder Zutat suchen…', en: '🔍 Search recipe or ingredient…' },
   'planner.filter': { de: '⚙️ Filter', en: '⚙️ Filters' },
   'planner.eaters': { de: 'Wer isst mit?', en: "Who's eating?" },
-  'planner.maxEffort': { de: 'Max. Aufwand', en: 'Max. effort' },
+  'planner.maxEffort': { de: 'Aufwand', en: 'Effort' },
+  'effort.special': { de: '🎉 Sonntagsessen', en: '🎉 Sunday feast' },
   'planner.surprise': { de: 'Egal, überrasch mich!', en: 'Whatever, surprise me!' },
   'planner.noRecipes': {
     de: 'Noch keine Rezepte. Leg im 📖 Tab welche an!',
@@ -173,8 +174,14 @@ export default {
   'recipeForm.saved': { de: '„{name}" gespeichert! 🎉', en: '"{name}" saved! 🎉' },
   // Index = difficulty level (1-3)
   'recipe.difficulty': {
-    de: ['', 'Wenig Aufwand, meist warten', 'Etwas schnippeln', 'Viel schnippeln & aktiv kochen'],
-    en: ['', 'Little effort, mostly waiting', 'Some chopping', 'Lots of chopping & active cooking'],
+    de: [
+      '', 'Wenig Aufwand, meist warten', 'Etwas schnippeln', 'Viel schnippeln & aktiv kochen',
+      'Dauert den ganzen Tag, für besondere Anlässe',
+    ],
+    en: [
+      '', 'Little effort, mostly waiting', 'Some chopping', 'Lots of chopping & active cooking',
+      'Takes all day, for special occasions',
+    ],
   },
 
   'sheet.randomPick': { de: '🎲 Zufallstreffer', en: '🎲 Random pick' },
