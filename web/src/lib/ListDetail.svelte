@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n.svelte.js';
   let { id, currentUser, onback } = $props();
 
   let list = $state(null);
@@ -28,7 +29,7 @@
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || 'Etwas ist schiefgelaufen');
+      throw new Error(data.error || t('common.genericError'));
     }
     return res.status === 204 ? null : res.json();
   }
@@ -37,7 +38,7 @@
     try {
       const res = await fetch(`/api/lists/${id}`);
       if (res.status === 404) return onback();
-      if (!res.ok) throw new Error('Liste konnte nicht geladen werden');
+      if (!res.ok) throw new Error(t('list.loadFailed'));
       const data = await res.json();
       list = data;
       renameValue = data.name;
@@ -87,7 +88,7 @@
       await api(`/items/${item.id}`, 'PATCH', { checked: item.checked });
     } catch {
       item.checked = !item.checked;
-      error = 'Konnte nicht gespeichert werden';
+      error = t('common.notSaved');
     }
   }
 
@@ -116,7 +117,7 @@
         const res = await fetch('/api/users');
         if (res.ok) allUsers = await res.json();
       } catch {
-        error = 'Benutzer konnten nicht geladen werden';
+        error = t('common.loadUsersFailed');
       }
     }
   }
@@ -143,7 +144,7 @@
   async function transfer() {
     const target = otherUsers.find((u) => u.id === Number(transferTo));
     if (!target) return;
-    if (!confirm(`„${list.name}" an ${target.username} übergeben? Du bleibst Mitglied.`)) return;
+    if (!confirm(t('list.confirmTransfer', { name: list.name, user: target.username }))) return;
     try {
       await api('/transfer', 'POST', { user_id: target.id });
       showSettings = false;
@@ -155,7 +156,7 @@
   }
 
   async function deleteList() {
-    if (!confirm(`„${list.name}" wirklich löschen?`)) return;
+    if (!confirm(t('common.confirmDelete', { name: list.name }))) return;
     try {
       await api('', 'DELETE');
       onback();
@@ -165,7 +166,7 @@
   }
 
   async function leave() {
-    if (!confirm(`„${list.name}" verlassen?`)) return;
+    if (!confirm(t('list.confirmLeave', { name: list.name }))) return;
     try {
       await api('/leave', 'POST');
       onback();
@@ -179,13 +180,13 @@
 
 <div class="page">
   <div class="topline">
-    <button class="back" onclick={onback}>‹ Alle Listen</button>
+    <button class="back" onclick={onback}>{t('list.all')}</button>
     {#if list && !isHousehold}
       <button
         class="gear"
         class:active={showSettings}
         onclick={toggleSettings}
-        aria-label="Einstellungen"
+        aria-label={t('app.settings')}
       >
         ⚙️
       </button>
@@ -193,19 +194,19 @@
   </div>
 
   {#if loading}
-    <p class="muted">Lade…</p>
+    <p class="muted">{t('common.loading')}</p>
   {:else if list}
     <h1>{list.name}</h1>
     <p class="sub">
       {#if isHousehold}
-        🏠 Haushaltsliste
+        {t('list.householdList')}
       {:else if isOwner}
-        📝 Deine Liste
+        {t('list.yours')}
       {:else}
-        👥 von {list.owner_name}
+        {t('list.byOwner', { name: list.owner_name })}
       {/if}
       {#if list.members.length > 0}
-        · {isHousehold ? '' : 'geteilt mit '}{list.members.map((m) => m.username).join(', ')}
+        · {isHousehold ? '' : `${t('list.sharedWith')} `}{list.members.map((m) => m.username).join(', ')}
       {/if}
     </p>
 
@@ -213,17 +214,17 @@
       <section class="settings">
         {#if isOwner}
           <div class="setting">
-            <span class="label">Name</span>
+            <span class="label">{t('common.name')}</span>
             <div class="row">
               <input type="text" bind:value={renameValue} />
-              <button class="ghost" onclick={rename}>Speichern</button>
+              <button class="ghost" onclick={rename}>{t('common.save')}</button>
             </div>
           </div>
 
           <div class="setting">
-            <span class="label">Teilen mit</span>
+            <span class="label">{t('list.shareWith')}</span>
             {#if otherUsers.length === 0}
-              <p class="muted left">Noch keine anderen Benutzer</p>
+              <p class="muted left">{t('list.noOtherUsers')}</p>
             {:else}
               <div class="user-grid">
                 {#each otherUsers as u (u.id)}
@@ -233,52 +234,52 @@
                   </label>
                 {/each}
               </div>
-              <button class="ghost" onclick={saveShares}>Teilen speichern</button>
+              <button class="ghost" onclick={saveShares}>{t('list.saveShares')}</button>
             {/if}
           </div>
 
           <div class="setting">
-            <span class="label">Besitz übergeben</span>
+            <span class="label">{t('list.transfer')}</span>
             <div class="row">
               <select bind:value={transferTo}>
-                <option value="">Person wählen…</option>
+                <option value="">{t('list.pickPerson')}</option>
                 {#each otherUsers as u (u.id)}
                   <option value={u.id}>{u.username}</option>
                 {/each}
               </select>
-              <button class="ghost" onclick={transfer} disabled={!transferTo}>Übergeben</button>
+              <button class="ghost" onclick={transfer} disabled={!transferTo}>{t('list.transferButton')}</button>
             </div>
           </div>
 
-          <button class="danger-btn" onclick={deleteList}>🗑️ Liste löschen</button>
+          <button class="danger-btn" onclick={deleteList}>{t('list.delete')}</button>
         {:else}
-          <button class="danger-btn" onclick={leave}>🚪 Liste verlassen</button>
+          <button class="danger-btn" onclick={leave}>{t('list.leave')}</button>
         {/if}
       </section>
     {/if}
 
     <form class="add-row" onsubmit={addItem}>
-      <input type="text" class="amount" bind:value={newAmount} placeholder="Menge" />
-      <input type="text" bind:value={newName} placeholder="Was fehlt?" />
-      <button type="submit" class="add-btn" aria-label="Hinzufügen">+</button>
+      <input type="text" class="amount" bind:value={newAmount} placeholder={t('list.amount')} />
+      <input type="text" bind:value={newName} placeholder={t('list.whatsMissing')} />
+      <button type="submit" class="add-btn" aria-label={t('common.add')}>+</button>
     </form>
 
     {#if error}<p class="error">{error}</p>{/if}
 
     {#if list.items.length === 0}
-      <p class="muted">Alles da! 🎉 Oder noch nichts eingetragen.</p>
+      <p class="muted">{t('list.empty')}</p>
     {:else}
       {#if open.length > 0}
         <ul class="items">
           {#each open as item (item.id)}
             <li class="item">
-              <button class="check" onclick={() => toggle(item)} aria-label="Abhaken"></button>
+              <button class="check" onclick={() => toggle(item)} aria-label={t('list.check')}></button>
               <span class="text">
                 {#if item.amount}<span class="qty">{item.amount}</span>{/if}
                 {item.name}
-                                {#if item.recipe_name}<span class="source">🍽️ {item.recipe_name}</span>{/if}
+                {#if item.recipe_name}<span class="source">🍽️ {item.recipe_name}</span>{/if}
               </span>
-              <button class="delete" onclick={() => removeItem(item)} aria-label="Löschen">✕</button>
+              <button class="delete" onclick={() => removeItem(item)} aria-label={t('common.delete')}>✕</button>
             </li>
           {/each}
         </ul>
@@ -286,19 +287,19 @@
 
       {#if done.length > 0}
         <div class="done-header">
-          <span class="label">Im Korb ({done.length})</span>
-          <button class="clear" onclick={clearDone}>Aufräumen</button>
+          <span class="label">{t('list.inBasket', { n: done.length })}</span>
+          <button class="clear" onclick={clearDone}>{t('list.clear')}</button>
         </div>
         <ul class="items">
           {#each done as item (item.id)}
             <li class="item checked">
-              <button class="check on" onclick={() => toggle(item)} aria-label="Zurücksetzen">✓</button>
+              <button class="check on" onclick={() => toggle(item)} aria-label={t('list.uncheck')}>✓</button>
               <span class="text">
                 {#if item.amount}<span class="qty">{item.amount}</span>{/if}
                 {item.name}
-                                {#if item.recipe_name}<span class="source">🍽️ {item.recipe_name}</span>{/if}
+                {#if item.recipe_name}<span class="source">🍽️ {item.recipe_name}</span>{/if}
               </span>
-              <button class="delete" onclick={() => removeItem(item)} aria-label="Löschen">✕</button>
+              <button class="delete" onclick={() => removeItem(item)} aria-label={t('common.delete')}>✕</button>
             </li>
           {/each}
         </ul>

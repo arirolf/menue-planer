@@ -1,4 +1,6 @@
 <script>
+  import { t, locale } from './i18n.svelte.js';
+
   let { currentUser } = $props();
 
   let users = $state([]);
@@ -17,7 +19,7 @@
     error = '';
     try {
       const res = await fetch('/api/admin/users');
-      if (!res.ok) throw new Error('Benutzer konnten nicht geladen werden');
+      if (!res.ok) throw new Error(t('common.loadUsersFailed'));
       users = await res.json();
     } catch (e) {
       error = e.message;
@@ -37,9 +39,9 @@
         body: JSON.stringify({ username: newUsername, is_admin: newIsAdmin }),
       });
       const data = await res.json();
-      if (res.status === 409) throw new Error('Dieser Benutzername ist schon vergeben');
-      if (res.status === 400) throw new Error('Nur a–z, 0–9, _ und -, 2–30 Zeichen');
-      if (!res.ok) throw new Error('Erstellen fehlgeschlagen');
+      if (res.status === 409) throw new Error(t('admin.taken'));
+      if (res.status === 400) throw new Error(t('admin.invalid'));
+      if (!res.ok) throw new Error(t('common.createFailed'));
 
       revealed = { username: data.username, password: data.password };
       copied = false;
@@ -54,11 +56,11 @@
   }
 
   async function resetPassword(user) {
-    if (!confirm(`Neues Passwort für „${user.username}" erstellen? Das alte funktioniert dann nicht mehr.`)) return;
+    if (!confirm(t('admin.confirmReset', { name: user.username }))) return;
     error = '';
     try {
       const res = await fetch(`/api/admin/users/${user.id}/reset-password`, { method: 'POST' });
-      if (!res.ok) throw new Error('Zurücksetzen fehlgeschlagen');
+      if (!res.ok) throw new Error(t('admin.resetFailed'));
       const data = await res.json();
       revealed = { username: user.username, password: data.password };
       copied = false;
@@ -68,11 +70,11 @@
   }
 
   async function remove(user) {
-    if (!confirm(`„${user.username}" wirklich löschen? Die Rezepte bleiben erhalten.`)) return;
+    if (!confirm(t('admin.confirmDeleteUser', { name: user.username }))) return;
     error = '';
     try {
       const res = await fetch(`/api/admin/users/${user.id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Löschen fehlgeschlagen');
+      if (!res.ok) throw new Error(t('common.deleteFailed'));
       users = users.filter((u) => u.id !== user.id);
     } catch (e) {
       error = e.message;
@@ -84,57 +86,57 @@
       await navigator.clipboard.writeText(revealed.password);
       copied = true;
     } catch {
-      error = 'Kopieren geht erst über HTTPS, bitte abschreiben';
+      error = t('admin.copyNeedsHttps');
     }
   }
 
   function formatDate(text) {
-    return new Date(text.replace(' ', 'T') + 'Z').toLocaleDateString('de-CH');
+    return new Date(text.replace(' ', 'T') + 'Z').toLocaleDateString(locale());
   }
 
   load();
 </script>
 
 <div class="page">
-  <h1>👑 Benutzer</h1>
+  <h1>{t('admin.users')}</h1>
 
   <form class="create" onsubmit={create}>
-    <span class="label">Neuer Benutzer</span>
+    <span class="label">{t('admin.newUser')}</span>
     <div class="create-row">
       <input
         type="text"
         bind:value={newUsername}
-        placeholder="z.B. papi"
+        placeholder={t('admin.usernamePlaceholder')}
         autocapitalize="none"
         spellcheck="false"
         required
       />
       <button type="submit" class="btn-primary small" disabled={creating}>
-        {creating ? '…' : 'Erstellen'}
+        {creating ? '…' : t('common.create')}
       </button>
     </div>
     <label class="checkbox">
       <input type="checkbox" bind:checked={newIsAdmin} />
-      Admin-Rechte
+      {t('admin.adminRights')}
     </label>
   </form>
 
   {#if revealed}
     <div class="reveal">
-      <p>Passwort für <strong>{revealed.username}</strong>:</p>
+      <p>{t('admin.passwordFor')} <strong>{revealed.username}</strong>:</p>
       <code>{revealed.password}</code>
       <div class="reveal-actions">
-        <button class="ghost" onclick={copyPassword}>{copied ? '✓ Kopiert' : '📋 Kopieren'}</button>
-        <button class="ghost" onclick={() => (revealed = null)}>Fertig</button>
+        <button class="ghost" onclick={copyPassword}>{copied ? t('admin.copied') : t('admin.copy')}</button>
+        <button class="ghost" onclick={() => (revealed = null)}>{t('common.done')}</button>
       </div>
-      <p class="hint">⚠️ Wird nur einmal angezeigt. Jetzt weitergeben oder aufschreiben!</p>
+      <p class="hint">{t('admin.shownOnce')}</p>
     </div>
   {/if}
 
   {#if error}<p class="error">{error}</p>{/if}
 
   {#if loading}
-    <p class="muted">Lade…</p>
+    <p class="muted">{t('common.loading')}</p>
   {:else}
     <ul class="list">
       {#each users as user (user.id)}
@@ -144,12 +146,12 @@
             <span class="name">
               {user.username}
               {#if user.is_admin}<span class="badge">👑 Admin</span>{/if}
-              {#if isMe}<span class="badge me">Du</span>{/if}
+              {#if isMe}<span class="badge me">{t('admin.you')}</span>{/if}
             </span>
-            <span class="meta">seit {formatDate(user.created_at)}</span>
+            <span class="meta">{t('admin.since', { date: formatDate(user.created_at) })}</span>
           </div>
-          <button class="icon-btn" onclick={() => resetPassword(user)} title="Passwort zurücksetzen">🔑</button>
-          <button class="icon-btn danger" onclick={() => remove(user)} disabled={isMe} title="Löschen">🗑️</button>
+          <button class="icon-btn" onclick={() => resetPassword(user)} title={t('admin.resetPassword')}>🔑</button>
+          <button class="icon-btn danger" onclick={() => remove(user)} disabled={isMe} title={t('common.delete')}>🗑️</button>
         </li>
       {/each}
     </ul>

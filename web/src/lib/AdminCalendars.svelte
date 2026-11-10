@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n.svelte.js';
   let households = $state([]);
   let calendars = $state([]);
   let loading = $state(true);
@@ -18,7 +19,7 @@
         fetch('/api/admin/households'),
         fetch('/api/admin/calendars'),
       ]);
-      if (!hRes.ok || !cRes.ok) throw new Error('Kalender konnten nicht geladen werden');
+      if (!hRes.ok || !cRes.ok) throw new Error(t('cal.loadFailed'));
       households = await hRes.json();
       calendars = await cRes.json();
     } catch (e) {
@@ -36,7 +37,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ household_id: household.id }),
       });
-      if (!res.ok) throw new Error('Erstellen fehlgeschlagen');
+      if (!res.ok) throw new Error(t('common.createFailed'));
       await load();
     } catch (e) {
       error = e.message;
@@ -44,11 +45,11 @@
   }
 
   async function remove(calendar) {
-    if (!confirm(`Kalender „${calendar.name}" mit allen Einträgen löschen?`)) return;
+    if (!confirm(t('adminCal.confirmDelete', { name: calendar.name }))) return;
     error = '';
     try {
       const res = await fetch(`/api/admin/calendars/${calendar.id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Löschen fehlgeschlagen');
+      if (!res.ok) throw new Error(t('common.deleteFailed'));
       calendars = calendars.filter((c) => c.id !== calendar.id);
     } catch (e) {
       error = e.message;
@@ -59,24 +60,24 @@
 </script>
 
 <section class="calendars">
-  <h2>📅 Kalender</h2>
+  <h2>{t('adminCal.title')}</h2>
 
   {#if error}<p class="error">{error}</p>{/if}
 
   {#if loading}
-    <p class="muted">Lade…</p>
+    <p class="muted">{t('common.loading')}</p>
   {:else if households.length === 0}
-    <p class="muted">Erstelle zuerst einen Haushalt</p>
+    <p class="muted">{t('adminCal.needHousehold')}</p>
   {:else}
     <ul class="list">
       {#each rows as row (row.household.id)}
         <li class="item">
           <span class="name">{row.household.name}</span>
           {#if row.calendar}
-            <span class="status">✓ aktiv</span>
-            <button class="icon-btn" onclick={() => remove(row.calendar)} title="Kalender löschen">🗑️</button>
+            <span class="status">{t('adminCal.active')}</span>
+            <button class="icon-btn" onclick={() => remove(row.calendar)} title={t('adminCal.delete')}>🗑️</button>
           {:else}
-            <button class="ghost" onclick={() => create(row.household)}>Erstellen</button>
+            <button class="ghost" onclick={() => create(row.household)}>{t('common.create')}</button>
           {/if}
         </li>
       {/each}

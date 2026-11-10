@@ -1,6 +1,7 @@
 <script>
   import { TIME_LABELS } from './constants.js';
   import RecipeForm from './RecipeForm.svelte';
+  import { t } from './i18n.svelte.js';
 
   let recipes = $state([]);
   let loading = $state(true);
@@ -19,7 +20,7 @@
     error = '';
     try {
       const res = await fetch('/api/recipes');
-      if (!res.ok) throw new Error('Rezepte konnten nicht geladen werden');
+      if (!res.ok) throw new Error(t('common.loadRecipesFailed'));
       recipes = await res.json();
     } catch (e) {
       error = e.message;
@@ -32,7 +33,7 @@
     error = '';
     try {
       const res = await fetch(`/api/recipes/${id}`);
-      if (!res.ok) throw new Error('Rezept konnte nicht geladen werden');
+      if (!res.ok) throw new Error(t('common.loadRecipeFailed'));
       editing = await res.json();
     } catch (e) {
       error = e.message;
@@ -50,15 +51,15 @@
       if (!res.ok) throw new Error();
       await load(true);
     } catch {
-      error = 'Konnte nicht gespeichert werden';
+      error = t('common.notSaved');
     }
   }
 
   async function remove(recipe) {
-    if (!confirm(`„${recipe.name}" wirklich löschen?`)) return;
+    if (!confirm(t('common.confirmDelete', { name: recipe.name }))) return;
     try {
       const res = await fetch(`/api/recipes/${recipe.id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Löschen fehlgeschlagen');
+      if (!res.ok) throw new Error(t('common.deleteFailed'));
       recipes = recipes.filter((r) => r.id !== recipe.id);
     } catch (e) {
       error = e.message;
@@ -81,21 +82,21 @@
 {:else}
   <div class="page">
     <div class="head">
-      <h1>Rezepte</h1>
-      <button class="btn-primary new" onclick={() => (creating = true)}>+ Neu</button>
+      <h1>{t('recipes.title')}</h1>
+      <button class="btn-primary new" onclick={() => (creating = true)}>{t('recipes.new')}</button>
     </div>
 
-    <input type="text" bind:value={search} placeholder="🔍 Suchen…" class="search" />
-    <p class="hint">👎 = „Mag ich nicht". Wird beim Würfeln übersprungen, wenn du mitisst.</p>
+    <input type="text" bind:value={search} placeholder={t('recipes.search')} class="search" />
+    <p class="hint">{t('recipes.dislikeHint')}</p>
 
     {#if error}<p class="error">{error}</p>{/if}
 
     {#if loading}
-      <p class="muted">Lade…</p>
+      <p class="muted">{t('common.loading')}</p>
     {:else if recipes.length === 0}
-      <p class="muted">Noch keine Rezepte. Leg mit „+ Neu" eins an!</p>
+      <p class="muted">{t('recipes.empty')}</p>
     {:else if filtered.length === 0}
-      <p class="muted">Nichts gefunden für „{search}"</p>
+      <p class="muted">{t('recipes.notFound', { q: search })}</p>
     {:else}
       <ul class="list">
         {#each filtered as r (r.id)}
@@ -111,16 +112,16 @@
               class="dislike"
               class:on={r.disliked_by_me}
               onclick={() => toggleDislike(r)}
-              aria-label={r.disliked_by_me ? 'Mag ich doch' : 'Mag ich nicht'}
-              title={r.disliked_by_me ? 'Mag ich doch' : 'Mag ich nicht'}
+              aria-label={t(r.disliked_by_me ? 'recipes.undislike' : 'recipes.dislike')}
+              title={t(r.disliked_by_me ? 'recipes.undislike' : 'recipes.dislike')}
             >
               👎
             </button>
-            <button class="delete" onclick={() => remove(r)} aria-label="Löschen">🗑️</button>
+            <button class="delete" onclick={() => remove(r)} aria-label={t('common.delete')}>🗑️</button>
           </li>
         {/each}
       </ul>
-      <p class="muted count">{filtered.length} von {recipes.length} Rezepten</p>
+      <p class="muted count">{t('recipes.count', { n: filtered.length, total: recipes.length })}</p>
     {/if}
   </div>
 {/if}

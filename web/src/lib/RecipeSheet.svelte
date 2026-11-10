@@ -1,7 +1,8 @@
 <script>
   import { fly, fade } from 'svelte/transition';
   import { TIME_LABELS } from './constants.js';
-  import { todayISO, formatShort, SLOT_LABELS } from './dates.js';
+  import { todayISO, formatShort, slotLabel } from './dates.js';
+  import { t } from './i18n.svelte.js';
 
   let { recipeId, calendars = [], lists = [], onclose, onreroll = null } = $props();
 
@@ -23,7 +24,7 @@
     addedMessage = '';
     try {
       const res = await fetch(`/api/recipes/${id}`);
-      if (!res.ok) throw new Error('Rezept konnte nicht geladen werden');
+      if (!res.ok) throw new Error(t('common.loadRecipeFailed'));
       const data = await res.json();
       if (id === recipeId) recipe = data; // ignore answers for an older roll
     } catch (e) {
@@ -44,10 +45,10 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ date: planDate, slot: planSlot, recipe_id: recipe.id }),
       });
-      if (res.status === 409) throw new Error('Da ist schon etwas geplant 📅');
-      if (!res.ok) throw new Error('Hat nicht geklappt, nochmal versuchen');
+      if (res.status === 409) throw new Error(t('sheet.slotTaken'));
+      if (!res.ok) throw new Error(t('common.tryAgain'));
       planOk = true;
-      planMessage = `✓ Eingeplant: ${formatShort(planDate)} · ${SLOT_LABELS[planSlot]}`;
+      planMessage = t('sheet.planned', { when: `${formatShort(planDate)} · ${slotLabel(planSlot)}` });
     } catch (e) {
       planOk = false;
       planMessage = e.message;
@@ -63,22 +64,22 @@
       if (!res.ok) throw new Error();
       const data = await res.json();
       const list = lists.find((l) => l.id === targetListId);
-      addedMessage = `✓ ${data.added} Zutaten auf „${list?.name}"`;
+      addedMessage = t('common.ingredientsAdded', { n: data.added, list: list?.name });
     } catch {
-      addedMessage = 'Hat nicht geklappt, nochmal versuchen';
+      addedMessage = t('common.tryAgain');
     }
   }
 </script>
 
-<button class="backdrop" aria-label="Schliessen" onclick={onclose} transition:fade={{ duration: 150 }}></button>
+<button class="backdrop" aria-label={t('common.close')} onclick={onclose} transition:fade={{ duration: 150 }}></button>
 
 <div class="sheet" role="dialog" aria-modal="true" transition:fly={{ y: 300, duration: 250 }}>
   {#if error}<p class="error">{error}</p>{/if}
 
   {#if !recipe}
-    <p class="muted">Lade…</p>
+    <p class="muted">{t('common.loading')}</p>
   {:else}
-    {#if onreroll}<span class="badge">🎲 Zufallstreffer</span>{/if}
+    {#if onreroll}<span class="badge">{t('sheet.randomPick')}</span>{/if}
     <h2>{recipe.name}</h2>
 
     <div class="tags">
@@ -87,7 +88,7 @@
     </div>
 
     {#if recipe.ingredients.length > 0}
-      <span class="label">Zutaten</span>
+      <span class="label">{t('common.ingredients')}</span>
       <ul>
         {#each recipe.ingredients as ing}
           <li>
@@ -100,7 +101,7 @@
 
     {#if calendars.length > 0}
       <div class="action">
-        <span class="label">📅 Einplanen</span>
+        <span class="label">{t('sheet.plan')}</span>
         {#if calendars.length > 1}
           <select class="spaced" bind:value={planCalendarId}>
             {#each calendars as c (c.id)}
@@ -111,11 +112,11 @@
         <div class="row">
           <input type="date" bind:value={planDate} />
           <select class="slot-select" bind:value={planSlot}>
-            <option value="lunch">Mittag</option>
-            <option value="dinner">Abend</option>
+            <option value="lunch">{t('slot.lunch')}</option>
+            <option value="dinner">{t('slot.dinner')}</option>
           </select>
         </div>
-        <button class="action-btn" onclick={plan}>📅 Einplanen</button>
+        <button class="action-btn" onclick={plan}>{t('sheet.plan')}</button>
         {#if planMessage}
           <p class="message" class:ok={planOk} class:fail={!planOk}>{planMessage}</p>
         {/if}
@@ -124,13 +125,13 @@
 
     {#if recipe.ingredients.length > 0 && lists.length > 0}
       <div class="action">
-        <span class="label">🛒 Zutaten auf Liste</span>
+        <span class="label">{t('sheet.toList')}</span>
         <select class="spaced" bind:value={targetListId}>
           {#each lists as l (l.id)}
             <option value={l.id}>{l.household_id ? '🏠' : '📝'} {l.name}</option>
           {/each}
         </select>
-        <button class="action-btn" onclick={addToList}>🛒 Hinzufügen</button>
+        <button class="action-btn" onclick={addToList}>{t('sheet.addToList')}</button>
         {#if addedMessage}<p class="message ok">{addedMessage}</p>{/if}
       </div>
     {/if}
@@ -138,9 +139,9 @@
 
   <div class="sheet-actions">
     {#if onreroll}
-      <button class="ghost" onclick={onreroll}>🎲 Nochmal</button>
+      <button class="ghost" onclick={onreroll}>{t('sheet.reroll')}</button>
     {/if}
-    <button class="btn-primary" onclick={onclose}>Fertig</button>
+    <button class="btn-primary" onclick={onclose}>{t('common.done')}</button>
   </div>
 </div>
 

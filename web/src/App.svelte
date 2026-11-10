@@ -8,6 +8,7 @@
   import AdminHouseholds from './lib/AdminHouseholds.svelte';
   import AdminCalendars from './lib/AdminCalendars.svelte';
   import Settings from './lib/Settings.svelte';
+  import { t, setLanguage } from './lib/i18n.svelte.js';
 
   let user = $state(null);
   let checking = $state(true);
@@ -21,24 +22,30 @@
   }
 
   let tabs = $derived([
-    { id: 'roll', icon: '🍽️', label: 'Planen' },
-    { id: 'recipes', icon: '📖', label: 'Rezepte' },
-    { id: 'cal', icon: '📅', label: 'Kalender' },
-    { id: 'shop', icon: '🛒', label: 'Einkauf' },
-    ...(user?.is_admin ? [{ id: 'admin', icon: '👑', label: 'Admin' }] : []),
+    { id: 'roll', icon: '🍽️', label: t('tab.plan') },
+    { id: 'recipes', icon: '📖', label: t('tab.recipes') },
+    { id: 'cal', icon: '📅', label: t('tab.calendar') },
+    { id: 'shop', icon: '🛒', label: t('tab.shopping') },
+    ...(user?.is_admin ? [{ id: 'admin', icon: '👑', label: t('tab.admin') }] : []),
   ]);
 
   async function checkSession() {
     try {
       const res = await fetch('/api/auth/me');
-      if (res.ok) user = await res.json();
+      if (res.ok) setUser(await res.json());
     } finally {
       checking = false;
     }
   }
 
+  // Every time we get the user from the server, follow their language setting
+  function setUser(u) {
+    user = u;
+    setLanguage(u.language);
+  }
+
   function handleLogin(loggedInUser) {
-    user = loggedInUser;
+    setUser(loggedInUser);
     page = 'roll';
   }
 
@@ -56,15 +63,15 @@
   <Login onlogin={handleLogin} />
 {:else}
   <header class="topbar">
-    <button class="hello" onclick={openSettings} aria-label="Einstellungen">
+    <button class="hello" onclick={openSettings} aria-label={t('app.settings')}>
       👋 {user.username} <span class="gear">⚙️</span>
     </button>
-    <button class="logout" onclick={logout}>Abmelden</button>
+    <button class="logout" onclick={logout}>{t('app.logout')}</button>
   </header>
 
   <main>
     {#if page === 'settings'}
-      <Settings {user} onsave={(u) => (user = u)} onback={() => (page = lastTab)} />
+      <Settings {user} onsave={setUser} onback={() => (page = lastTab)} />
     {:else if page === 'roll'}
       <Planner />
     {:else if page === 'recipes'}

@@ -1,11 +1,13 @@
 <script>
   import MealEditor from './MealEditor.svelte';
   import TripEditor from './TripEditor.svelte';
+  import { t, i18n } from './i18n.svelte.js';
   import {
-    WEEKDAYS,
-    WEEKDAYS_LONG,
-    MONTHS,
-    SLOT_LABELS,
+    weekdays,
+    weekdaysLong,
+    months,
+    slotLabel,
+    dayMonth,
     toISO,
     fromISO,
     addDays,
@@ -63,20 +65,21 @@
 
   let listRange = $derived(
     view === 'week'
-      ? { from: weekDays[0], to: weekDays[6], label: 'dieser Woche' }
+      ? { from: weekDays[0], to: weekDays[6], label: t('cal.ingredientsWeek') }
       : {
           from: toISO(monthFirst),
           to: toISO(new Date(monthFirst.getFullYear(), monthFirst.getMonth() + 1, 0)),
-          label: 'dieses Monats',
+          label: t('cal.ingredientsMonth'),
         }
   );
 
   let selectedVisible = $derived(selectedDay >= range.from && selectedDay <= range.to);
 
   let title = $derived.by(() => {
-    if (view === 'month') return `${MONTHS[monthFirst.getMonth()]} ${monthFirst.getFullYear()}`;
+    if (view === 'month') return `${months()[monthFirst.getMonth()]} ${monthFirst.getFullYear()}`;
     const end = addDays(weekStart, 6);
-    return `KW ${weekNumber(weekStart)} · ${weekStart.getDate()}. – ${end.getDate()}. ${MONTHS[end.getMonth()].slice(0, 3)}`;
+    const startDay = i18n.lang === 'de' ? `${weekStart.getDate()}.` : weekStart.getDate();
+    return `${t('date.weekShort')} ${weekNumber(weekStart)} · ${startDay} – ${dayMonth(end, true)}`;
   });
 
   // Group meals and trips by date
@@ -101,7 +104,7 @@
         fetch('/api/recipes'),
         fetch('/api/lists'),
       ]);
-      if (!cRes.ok) throw new Error('Kalender konnten nicht geladen werden');
+      if (!cRes.ok) throw new Error(t('cal.loadFailed'));
       calendars = await cRes.json();
       calendarId = calendars[0]?.id ?? null;
       if (rRes.ok) recipes = await rRes.json();
@@ -120,7 +123,7 @@
     const thisRequest = ++requestId;
     try {
       const res = await fetch(`/api/calendars/${id}/entries?from=${from}&to=${to}`);
-      if (!res.ok) throw new Error('Einträge konnten nicht geladen werden');
+      if (!res.ok) throw new Error(t('cal.entriesFailed'));
       const data = await res.json();
       if (thisRequest !== requestId) return; // an older answer arrived late, ignore it
       meals = data.meals;
@@ -200,10 +203,10 @@
       const list = lists.find((l) => l.id === targetListId);
       listMessage =
         data.added > 0
-          ? `✓ ${data.added} Zutaten auf „${list?.name}"`
-          : 'Keine Rezepte mit Zutaten in diesem Zeitraum';
+          ? t('common.ingredientsAdded', { n: data.added, list: list?.name })
+          : t('cal.noIngredients');
     } catch {
-      listMessage = 'Hat nicht geklappt, nochmal versuchen';
+      listMessage = t('common.tryAgain');
     }
   }
 
@@ -219,7 +222,7 @@
       const to = toISO(new Date(year, month + 1, 0));
 
       const res = await fetch(`/api/calendars/${calendarId}/entries?from=${from}&to=${to}`);
-      if (!res.ok) throw new Error('PDF-Daten konnten nicht geladen werden');
+      if (!res.ok) throw new Error(t('cal.pdfDataFailed'));
       const data = await res.json();
 
       // Only load the PDF library when someone actually needs it
@@ -232,7 +235,7 @@
         trips: data.trips,
       });
     } catch (e) {
-      error = e.message || 'PDF konnte nicht erstellt werden';
+      error = e.message || t('cal.pdfFailed');
     } finally {
       pdfBusy = false;
     }
@@ -265,43 +268,43 @@
   {@const entry = day(iso)}
   <article class="day" class:today={iso === today}>
     <header class="day-head">
-      <span class="day-name">{WEEKDAYS_LONG[weekdayIndex(d)]}</span>
-      <span class="day-date">{d.getDate()}. {MONTHS[d.getMonth()]}</span>
+      <span class="day-name">{weekdaysLong()[weekdayIndex(d)]}</span>
+      <span class="day-date">{dayMonth(d)}</span>
     </header>
 
     {#each SLOTS as slot}
       {@const meal = entry[slot]}
       <button class="slot" class:empty={!meal} onclick={() => openMeal(iso, slot, meal)}>
-        <span class="slot-label">{SLOT_LABELS[slot]}</span>
+        <span class="slot-label">{slotLabel(slot)}</span>
         {#if meal}
           <span class="slot-body">
             {#if meal.title}<span class="meal-title">{meal.title}</span>{/if}
             {#if meal.note}<span class="meal-note">💬 {meal.note}</span>{/if}
           </span>
         {:else}
-          <span class="slot-add">+ planen</span>
+          <span class="slot-add">{t('cal.planSlot')}</span>
         {/if}
       </button>
     {/each}
 
     {#each entry.trips as trip (trip.id)}
       <button class="trip" onclick={() => openTrip(iso, trip)}>
-        <span>🛒 {trip.time ? `${trip.time} · ` : ''}Einkaufen{trip.list_name ? ` · ${trip.list_name}` : ''}</span>
+        <span>🛒 {trip.time ? `${trip.time} · ` : ''}{t('cal.shopping')}{trip.list_name ? ` · ${trip.list_name}` : ''}</span>
         {#if trip.note}<span class="meal-note">💬 {trip.note}</span>{/if}
       </button>
     {/each}
 
-    <button class="add-trip" onclick={() => openTrip(iso, null)}>+ Einkauf planen</button>
+    <button class="add-trip" onclick={() => openTrip(iso, null)}>{t('cal.addTrip')}</button>
   </article>
 {/snippet}
 
 <div class="page">
-  <h1>Kalender</h1>
+  <h1>{t('cal.title')}</h1>
 
   {#if loadingSetup}
-    <p class="muted">Lade…</p>
+    <p class="muted">{t('common.loading')}</p>
   {:else if calendars.length === 0}
-    <p class="muted">Noch kein Kalender für dich. Der Admin kann im 👑 Tab einen für deinen Haushalt erstellen.</p>
+    <p class="muted">{t('cal.none')}</p>
   {:else}
     {#if calendars.length > 1}
       <select class="cal-select" bind:value={calendarId}>
@@ -313,16 +316,16 @@
 
     <div class="toolbar">
       <div class="switch">
-        <button class:active={view === 'week'} onclick={() => setView('week')}>Woche</button>
-        <button class:active={view === 'month'} onclick={() => setView('month')}>Monat</button>
+        <button class:active={view === 'week'} onclick={() => setView('week')}>{t('cal.week')}</button>
+        <button class:active={view === 'month'} onclick={() => setView('month')}>{t('cal.month')}</button>
       </div>
-      <button class="today-btn" onclick={goToday}>Heute</button>
+      <button class="today-btn" onclick={goToday}>{t('cal.today')}</button>
     </div>
 
     <div class="nav">
-      <button class="nav-btn" onclick={() => move(-1)} aria-label="Zurück">‹</button>
+      <button class="nav-btn" onclick={() => move(-1)} aria-label={t('common.back')}>‹</button>
       <span class="period">{title}</span>
-      <button class="nav-btn" onclick={() => move(1)} aria-label="Weiter">›</button>
+      <button class="nav-btn" onclick={() => move(1)} aria-label={t('common.next')}>›</button>
     </div>
 
     {#if error}<p class="error">{error}</p>{/if}
@@ -330,12 +333,12 @@
     {#if view === 'week'}
       <div class="grid strip">
         {#each weekDays as iso, i (iso)}
-          {@render dayCell(iso, true, WEEKDAYS[i])}
+          {@render dayCell(iso, true, weekdays()[i])}
         {/each}
       </div>
     {:else}
       <div class="grid month">
-        {#each WEEKDAYS as wd}
+        {#each weekdays() as wd}
           <span class="wd">{wd}</span>
         {/each}
         {#each monthCells as cell (cell.iso)}
@@ -345,9 +348,9 @@
     {/if}
 
     <p class="legend">
-      <span class="dot lunch"></span> Mittag
-      <span class="dot dinner"></span> Abend
-      <span class="dot trip-dot"></span> Einkauf
+      <span class="dot lunch"></span> {t('slot.lunch')}
+      <span class="dot dinner"></span> {t('slot.dinner')}
+      <span class="dot trip-dot"></span> {t('cal.legendTrip')}
     </p>
 
     {#if selectedVisible}
@@ -356,21 +359,21 @@
 
     {#if lists.length > 0}
       <section class="box">
-        <span class="label">Zutaten {listRange.label}</span>
+        <span class="label">{listRange.label}</span>
         <div class="row">
           <select bind:value={targetListId}>
             {#each lists as l (l.id)}
               <option value={l.id}>{l.household_id ? '🏠' : '📝'} {l.name}</option>
             {/each}
           </select>
-          <button class="btn-primary small" onclick={ingredientsToList}>🛒 Hinzufügen</button>
+          <button class="btn-primary small" onclick={ingredientsToList}>{t('sheet.addToList')}</button>
         </div>
         {#if listMessage}<p class="success">{listMessage}</p>{/if}
       </section>
     {/if}
 
     <button class="pdf-btn" onclick={downloadPdf} disabled={pdfBusy}>
-      {pdfBusy ? 'Erstelle PDF…' : `🖨️ ${MONTHS[monthFirst.getMonth()]} als PDF`}
+      {pdfBusy ? t('cal.pdfBusy') : t('cal.pdfButton', { month: months()[monthFirst.getMonth()] })}
     </button>
   {/if}
 </div>

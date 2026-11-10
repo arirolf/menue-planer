@@ -1,0 +1,323 @@
+// All UI text, German and English side by side.
+// {name} placeholders get filled in by t(key, { name }).
+
+export default {
+  // ---------- Shared ----------
+  'app.title': { de: 'Was kochen wir?', en: "What's cooking?" },
+  'app.logout': { de: 'Abmelden', en: 'Log out' },
+  'app.settings': { de: 'Einstellungen', en: 'Settings' },
+  'tab.plan': { de: 'Planen', en: 'Plan' },
+  'tab.recipes': { de: 'Rezepte', en: 'Recipes' },
+  'tab.calendar': { de: 'Kalender', en: 'Calendar' },
+  'tab.shopping': { de: 'Einkauf', en: 'Shopping' },
+  'tab.admin': { de: 'Admin', en: 'Admin' },
+
+  'common.loading': { de: 'Lade…', en: 'Loading…' },
+  'common.save': { de: 'Speichern', en: 'Save' },
+  'common.saving': { de: 'Speichere…', en: 'Saving…' },
+  'common.cancel': { de: 'Abbrechen', en: 'Cancel' },
+  'common.back': { de: 'Zurück', en: 'Back' },
+  'common.next': { de: 'Weiter', en: 'Next' },
+  'common.done': { de: 'Fertig', en: 'Done' },
+  'common.create': { de: 'Erstellen', en: 'Create' },
+  'common.delete': { de: 'Löschen', en: 'Delete' },
+  'common.edit': { de: 'Bearbeiten', en: 'Edit' },
+  'common.close': { de: 'Schliessen', en: 'Close' },
+  'common.add': { de: 'Hinzufügen', en: 'Add' },
+  'common.name': { de: 'Name', en: 'Name' },
+  'common.time': { de: 'Zeit', en: 'Time' },
+  'common.effort': { de: 'Aufwand', en: 'Effort' },
+  'common.ingredients': { de: 'Zutaten', en: 'Ingredients' },
+  'common.note': { de: 'Info (optional)', en: 'Note (optional)' },
+  'common.confirmDelete': { de: '„{name}" wirklich löschen?', en: 'Really delete "{name}"?' },
+  'common.ingredientsAdded': {
+    de: '✓ {n} Zutaten auf „{list}"',
+    en: '✓ {n} ingredients added to "{list}"',
+  },
+  'common.saveFailed': { de: 'Speichern fehlgeschlagen', en: 'Saving failed' },
+  'common.deleteFailed': { de: 'Löschen fehlgeschlagen', en: 'Deleting failed' },
+  'common.createFailed': { de: 'Erstellen fehlgeschlagen', en: 'Creating failed' },
+  'common.notSaved': { de: 'Konnte nicht gespeichert werden', en: "Couldn't save" },
+  'common.tryAgain': {
+    de: 'Hat nicht geklappt, nochmal versuchen',
+    en: "That didn't work, please try again",
+  },
+  'common.genericError': { de: 'Etwas ist schiefgelaufen', en: 'Something went wrong' },
+  'common.loadUsersFailed': {
+    de: 'Benutzer konnten nicht geladen werden',
+    en: "Couldn't load users",
+  },
+  'common.loadRecipesFailed': {
+    de: 'Rezepte konnten nicht geladen werden',
+    en: "Couldn't load recipes",
+  },
+  'common.loadRecipeFailed': {
+    de: 'Rezept konnte nicht geladen werden',
+    en: "Couldn't load recipe",
+  },
+
+  // ---------- Dates ----------
+  'date.weekdays': {
+    de: ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'],
+    en: ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'],
+  },
+  'date.weekdaysLong': {
+    de: ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'],
+    en: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+  },
+  'date.months': {
+    de: [
+      'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+      'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
+    ],
+    en: [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ],
+  },
+  'date.weekShort': { de: 'KW', en: 'Wk' },
+  'slot.lunch': { de: 'Mittag', en: 'Lunch' },
+  'slot.dinner': { de: 'Abend', en: 'Dinner' },
+
+  // ---------- Settings ----------
+  'settings.title': { de: '⚙️ Einstellungen', en: '⚙️ Settings' },
+  'settings.language': { de: 'Sprache', en: 'Language' },
+  'settings.saved': { de: 'Gespeichert ✓', en: 'Saved ✓' },
+
+  // ---------- Login ----------
+  'login.subtitle': { de: 'Bitte melde dich an', en: 'Please sign in' },
+  'login.username': { de: 'Benutzername', en: 'Username' },
+  'login.password': { de: 'Passwort', en: 'Password' },
+  'login.submit': { de: 'Anmelden', en: 'Sign in' },
+  'login.submitting': { de: 'Melde an…', en: 'Signing in…' },
+  'login.wrong': { de: 'Benutzername oder Passwort falsch', en: 'Wrong username or password' },
+  'login.failed': {
+    de: 'Login fehlgeschlagen, bitte nochmal versuchen',
+    en: 'Login failed, please try again',
+  },
+
+  // ---------- Planner ----------
+  'planner.any': { de: 'Egal', en: 'Any' },
+  'planner.search': { de: '🔍 Rezept oder Zutat suchen…', en: '🔍 Search recipe or ingredient…' },
+  'planner.filter': { de: '⚙️ Filter', en: '⚙️ Filters' },
+  'planner.eaters': { de: 'Wer isst mit?', en: "Who's eating?" },
+  'planner.maxEffort': { de: 'Max. Aufwand', en: 'Max. effort' },
+  'planner.surprise': { de: 'Egal, überrasch mich!', en: 'Whatever, surprise me!' },
+  'planner.noRecipes': {
+    de: 'Noch keine Rezepte. Leg im 📖 Tab welche an!',
+    en: 'No recipes yet. Add some in the 📖 tab!',
+  },
+  'planner.noMatch': { de: 'Nichts passt zu diesen Filtern 🤷', en: 'Nothing matches these filters 🤷' },
+  'planner.matchOne': { de: '{n} Rezept passt', en: '{n} recipe matches' },
+  'planner.matchMany': { de: '{n} Rezepte passen', en: '{n} recipes match' },
+
+  // ---------- Recipes ----------
+  'recipes.title': { de: 'Rezepte', en: 'Recipes' },
+  'recipes.new': { de: '+ Neu', en: '+ New' },
+  'recipes.search': { de: '🔍 Suchen…', en: '🔍 Search…' },
+  'recipes.dislikeHint': {
+    de: '👎 = „Mag ich nicht". Wird beim Würfeln übersprungen, wenn du mitisst.',
+    en: "👎 = \"Don't like it\". The dice skips it when you're eating.",
+  },
+  'recipes.empty': {
+    de: 'Noch keine Rezepte. Leg mit „+ Neu" eins an!',
+    en: 'No recipes yet. Add one with "+ New"!',
+  },
+  'recipes.notFound': { de: 'Nichts gefunden für „{q}"', en: 'Nothing found for "{q}"' },
+  'recipes.dislike': { de: 'Mag ich nicht', en: "Don't like it" },
+  'recipes.undislike': { de: 'Mag ich doch', en: 'I like it after all' },
+  'recipes.count': { de: '{n} von {total} Rezepten', en: '{n} of {total} recipes' },
+
+  'recipeForm.edit': { de: 'Rezept bearbeiten', en: 'Edit recipe' },
+  'recipeForm.new': { de: 'Neues Rezept', en: 'New recipe' },
+  'recipeForm.namePlaceholder': { de: 'z.B. Lasagne', en: 'e.g. Lasagna' },
+  'recipeForm.nameRequired': { de: 'Bitte einen Namen eingeben', en: 'Please enter a name' },
+  'recipeForm.amountPlaceholder': { de: '500 g', en: '500 g' },
+  'recipeForm.ingredientPlaceholder': { de: 'Zutat', en: 'Ingredient' },
+  'recipeForm.removeIngredient': { de: 'Zutat entfernen', en: 'Remove ingredient' },
+  'recipeForm.addIngredient': { de: '+ Zutat hinzufügen', en: '+ Add ingredient' },
+  'recipeForm.save': { de: 'Rezept speichern', en: 'Save recipe' },
+  'recipeForm.saved': { de: '„{name}" gespeichert! 🎉', en: '"{name}" saved! 🎉' },
+  // Index = difficulty level (1-3)
+  'recipe.difficulty': {
+    de: ['', 'Wenig Aufwand, meist warten', 'Etwas schnippeln', 'Viel schnippeln & aktiv kochen'],
+    en: ['', 'Little effort, mostly waiting', 'Some chopping', 'Lots of chopping & active cooking'],
+  },
+
+  'sheet.randomPick': { de: '🎲 Zufallstreffer', en: '🎲 Random pick' },
+  'sheet.plan': { de: '📅 Einplanen', en: '📅 Add to calendar' },
+  'sheet.slotTaken': { de: 'Da ist schon etwas geplant 📅', en: 'Something is already planned there 📅' },
+  'sheet.planned': { de: '✓ Eingeplant: {when}', en: '✓ Planned: {when}' },
+  'sheet.toList': { de: '🛒 Zutaten auf Liste', en: '🛒 Ingredients to list' },
+  'sheet.addToList': { de: '🛒 Hinzufügen', en: '🛒 Add' },
+  'sheet.reroll': { de: '🎲 Nochmal', en: '🎲 Again' },
+
+  // ---------- Calendar ----------
+  'cal.title': { de: 'Kalender', en: 'Calendar' },
+  'cal.loadFailed': { de: 'Kalender konnten nicht geladen werden', en: "Couldn't load calendars" },
+  'cal.entriesFailed': { de: 'Einträge konnten nicht geladen werden', en: "Couldn't load entries" },
+  'cal.none': {
+    de: 'Noch kein Kalender für dich. Der Admin kann im 👑 Tab einen für deinen Haushalt erstellen.',
+    en: 'No calendar for you yet. An admin can create one for your household in the 👑 tab.',
+  },
+  'cal.week': { de: 'Woche', en: 'Week' },
+  'cal.month': { de: 'Monat', en: 'Month' },
+  'cal.today': { de: 'Heute', en: 'Today' },
+  'cal.planSlot': { de: '+ planen', en: '+ plan' },
+  'cal.shopping': { de: 'Einkaufen', en: 'Shopping' },
+  'cal.addTrip': { de: '+ Einkauf planen', en: '+ Plan shopping' },
+  'cal.legendTrip': { de: 'Einkauf', en: 'Shopping' },
+  'cal.ingredientsWeek': { de: 'Zutaten dieser Woche', en: "This week's ingredients" },
+  'cal.ingredientsMonth': { de: 'Zutaten dieses Monats', en: "This month's ingredients" },
+  'cal.noIngredients': {
+    de: 'Keine Rezepte mit Zutaten in diesem Zeitraum',
+    en: 'No recipes with ingredients in this period',
+  },
+  'cal.pdfButton': { de: '🖨️ {month} als PDF', en: '🖨️ {month} as PDF' },
+  'cal.pdfBusy': { de: 'Erstelle PDF…', en: 'Creating PDF…' },
+  'cal.pdfDataFailed': { de: 'PDF-Daten konnten nicht geladen werden', en: "Couldn't load PDF data" },
+  'cal.pdfFailed': { de: 'PDF konnte nicht erstellt werden', en: "Couldn't create PDF" },
+
+  'meal.edit': { de: 'Essen bearbeiten', en: 'Edit meal' },
+  'meal.new': { de: 'Essen planen', en: 'Plan meal' },
+  'meal.recipe': { de: 'Rezept', en: 'Recipe' },
+  'meal.noRecipe': { de: '— Kein Rezept / eigener Text —', en: '— No recipe / own text —' },
+  'meal.ownText': { de: 'Eigener Text', en: 'Own text' },
+  'meal.titlePlaceholder': { de: 'z.B. Auswärts essen', en: 'e.g. Eating out' },
+  'meal.notePlaceholder': { de: 'z.B. Lunchbox mitnehmen', en: 'e.g. Pack a lunchbox' },
+  'meal.move': { de: 'Verschieben', en: 'Move' },
+  'meal.delete': { de: '🗑️ Eintrag löschen', en: '🗑️ Delete entry' },
+  'meal.confirmDelete': { de: 'Diesen Eintrag löschen?', en: 'Delete this entry?' },
+  'meal.needSomething': {
+    de: 'Wähle ein Rezept, schreib etwas oder füge eine Info hinzu',
+    en: 'Pick a recipe, write something or add a note',
+  },
+  'meal.slotTaken': {
+    de: 'Dieser Platz ist an dem Tag schon belegt',
+    en: 'That slot is already taken on this day',
+  },
+
+  'trip.edit': { de: 'Einkauf bearbeiten', en: 'Edit shopping trip' },
+  'trip.new': { de: 'Einkauf planen', en: 'Plan shopping trip' },
+  'trip.when': { de: 'Wann', en: 'When' },
+  'trip.list': { de: 'Einkaufsliste', en: 'Shopping list' },
+  'trip.noList': { de: '— Keine Liste —', en: '— No list —' },
+  'trip.notePlaceholder': { de: 'z.B. Wocheneinkauf', en: 'e.g. Weekly shop' },
+  'trip.delete': { de: '🗑️ Einkauf löschen', en: '🗑️ Delete shopping trip' },
+  'trip.confirmDelete': { de: 'Diesen Einkauf löschen?', en: 'Delete this shopping trip?' },
+
+  // ---------- Shopping lists ----------
+  'lists.title': { de: 'Einkaufslisten', en: 'Shopping lists' },
+  'lists.loadFailed': { de: 'Listen konnten nicht geladen werden', en: "Couldn't load lists" },
+  'lists.by': { de: 'von {name}', en: 'by {name}' },
+  'lists.household': { de: '🏠 Haushalt', en: '🏠 Household' },
+  'lists.noHousehold': { de: 'Du bist noch in keinem Haushalt', en: "You're not in a household yet" },
+  'lists.mine': { de: '📝 Meine Listen', en: '📝 My lists' },
+  'lists.noneMine': { de: 'Noch keine eigenen Listen', en: 'No lists of your own yet' },
+  'lists.shared': { de: '👥 Mit mir geteilt', en: '👥 Shared with me' },
+  'lists.newPlaceholder': { de: 'Neue Liste', en: 'New list' },
+
+  'list.loadFailed': { de: 'Liste konnte nicht geladen werden', en: "Couldn't load list" },
+  'list.all': { de: '‹ Alle Listen', en: '‹ All lists' },
+  'list.householdList': { de: '🏠 Haushaltsliste', en: '🏠 Household list' },
+  'list.yours': { de: '📝 Deine Liste', en: '📝 Your list' },
+  'list.byOwner': { de: '👥 von {name}', en: '👥 by {name}' },
+  'list.sharedWith': { de: 'geteilt mit', en: 'shared with' },
+  'list.shareWith': { de: 'Teilen mit', en: 'Share with' },
+  'list.noOtherUsers': { de: 'Noch keine anderen Benutzer', en: 'No other users yet' },
+  'list.saveShares': { de: 'Teilen speichern', en: 'Save sharing' },
+  'list.transfer': { de: 'Besitz übergeben', en: 'Transfer ownership' },
+  'list.pickPerson': { de: 'Person wählen…', en: 'Choose person…' },
+  'list.transferButton': { de: 'Übergeben', en: 'Transfer' },
+  'list.confirmTransfer': {
+    de: '„{name}" an {user} übergeben? Du bleibst Mitglied.',
+    en: 'Hand "{name}" over to {user}? You stay a member.',
+  },
+  'list.delete': { de: '🗑️ Liste löschen', en: '🗑️ Delete list' },
+  'list.leave': { de: '🚪 Liste verlassen', en: '🚪 Leave list' },
+  'list.confirmLeave': { de: '„{name}" verlassen?', en: 'Leave "{name}"?' },
+  'list.amount': { de: 'Menge', en: 'Amount' },
+  'list.whatsMissing': { de: 'Was fehlt?', en: "What's missing?" },
+  'list.empty': {
+    de: 'Alles da! 🎉 Oder noch nichts eingetragen.',
+    en: 'All stocked! 🎉 Or nothing added yet.',
+  },
+  'list.check': { de: 'Abhaken', en: 'Check off' },
+  'list.uncheck': { de: 'Zurücksetzen', en: 'Uncheck' },
+  'list.inBasket': { de: 'Im Korb ({n})', en: 'In the basket ({n})' },
+  'list.clear': { de: 'Aufräumen', en: 'Clear' },
+
+  // ---------- Admin ----------
+  'admin.users': { de: '👑 Benutzer', en: '👑 Users' },
+  'admin.newUser': { de: 'Neuer Benutzer', en: 'New user' },
+  'admin.usernamePlaceholder': { de: 'benutzername', en: 'username' },
+  'admin.adminRights': { de: 'Admin-Rechte', en: 'Admin rights' },
+  'admin.taken': { de: 'Dieser Benutzername ist schon vergeben', en: 'That username is already taken' },
+  'admin.invalid': {
+    de: 'Nur a–z, 0–9, _ und -, 2–30 Zeichen',
+    en: 'Only a–z, 0–9, _ and -, 2–30 characters',
+  },
+  'admin.passwordFor': { de: 'Passwort für', en: 'Password for' },
+  'admin.copy': { de: '📋 Kopieren', en: '📋 Copy' },
+  'admin.copied': { de: '✓ Kopiert', en: '✓ Copied' },
+  'admin.copyNeedsHttps': {
+    de: 'Kopieren geht erst über HTTPS, bitte abschreiben',
+    en: 'Copying needs HTTPS, please write it down',
+  },
+  'admin.shownOnce': {
+    de: '⚠️ Wird nur einmal angezeigt. Jetzt weitergeben oder aufschreiben!',
+    en: '⚠️ Shown only once. Pass it on or write it down now!',
+  },
+  'admin.you': { de: 'Du', en: 'You' },
+  'admin.since': { de: 'seit {date}', en: 'since {date}' },
+  'admin.resetPassword': { de: 'Passwort zurücksetzen', en: 'Reset password' },
+  'admin.confirmReset': {
+    de: 'Neues Passwort für „{name}" erstellen? Das alte funktioniert dann nicht mehr.',
+    en: 'Create a new password for "{name}"? The old one will stop working.',
+  },
+  'admin.resetFailed': { de: 'Zurücksetzen fehlgeschlagen', en: 'Reset failed' },
+  'admin.confirmDeleteUser': {
+    de: '„{name}" wirklich löschen? Die Rezepte bleiben erhalten.',
+    en: 'Really delete "{name}"? Their recipes are kept.',
+  },
+
+  'households.title': { de: '🏠 Haushalte', en: '🏠 Households' },
+  'households.placeholder': { de: 'z.B. Zuhause', en: 'e.g. Home' },
+  'households.none': { de: 'Noch keine Haushalte', en: 'No households yet' },
+  'households.members': { de: 'Mitglieder', en: 'Members' },
+  'households.noMembers': { de: 'Keine Mitglieder', en: 'No members' },
+  'households.loadFailed': {
+    de: 'Haushalte konnten nicht geladen werden',
+    en: "Couldn't load households",
+  },
+  'households.renameFailed': { de: 'Umbenennen fehlgeschlagen', en: 'Renaming failed' },
+  'households.membersFailed': {
+    de: 'Mitglieder speichern fehlgeschlagen',
+    en: 'Saving members failed',
+  },
+  'households.confirmDelete': {
+    de: 'Haushalt „{name}" und seine Einkaufsliste wirklich löschen?',
+    en: 'Really delete household "{name}" and its shopping list?',
+  },
+
+  'adminCal.title': { de: '📅 Kalender', en: '📅 Calendars' },
+  'adminCal.needHousehold': { de: 'Erstelle zuerst einen Haushalt', en: 'Create a household first' },
+  'adminCal.active': { de: '✓ aktiv', en: '✓ active' },
+  'adminCal.delete': { de: 'Kalender löschen', en: 'Delete calendar' },
+  'adminCal.confirmDelete': {
+    de: 'Kalender „{name}" mit allen Einträgen löschen?',
+    en: 'Delete calendar "{name}" with all its entries?',
+  },
+
+  // ---------- PDF (plain Latin-1 text only, no emoji) ----------
+  'pdf.title': { de: 'Menüplan {month} {year}', en: 'Meal plan {month} {year}' },
+  'pdf.lunchLetter': { de: 'M', en: 'L' },
+  'pdf.dinnerLetter': { de: 'A', en: 'D' },
+  'pdf.tripLetter': { de: 'E:', en: 'S:' },
+  'pdf.legend': {
+    de: 'M = Mittag    A = Abend    E = Einkauf    » = Info',
+    en: 'L = Lunch    D = Dinner    S = Shopping    » = Note',
+  },
+  'pdf.created': { de: 'Erstellt am {date}', en: 'Created on {date}' },
+  'pdf.filename': { de: 'Menueplan', en: 'Meal-plan' },
+};

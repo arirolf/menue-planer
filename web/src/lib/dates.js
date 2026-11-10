@@ -1,10 +1,17 @@
-export const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
-export const WEEKDAYS_LONG = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
-export const MONTHS = [
-  'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
-  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
-];
-export const SLOT_LABELS = { lunch: 'Mittag', dinner: 'Abend' };
+import { t, i18n } from './i18n.svelte.js';
+
+// Functions instead of constants, so they follow the current language
+export const weekdays = () => t('date.weekdays');
+export const weekdaysLong = () => t('date.weekdaysLong');
+export const months = () => t('date.months');
+export const slotLabel = (slot) => t(`slot.${slot}`);
+
+// "10. November" / "10 November", or with short=true "10. Nov" / "10 Nov"
+export function dayMonth(date, short = false) {
+  const month = months()[date.getMonth()];
+  const name = short ? month.slice(0, 3) : month;
+  return i18n.lang === 'de' ? `${date.getDate()}. ${name}` : `${date.getDate()} ${name}`;
+}
 
 // Date -> "2026-11-09", in local time (not UTC!)
 export function toISO(date) {
@@ -40,7 +47,7 @@ export function todayISO() {
   return toISO(new Date());
 }
 
-// ISO calendar week, like "KW 46"
+// ISO calendar week number, shown like "KW 46"
 export function weekNumber(date) {
   const t = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
   t.setUTCDate(t.getUTCDate() + 3 - ((t.getUTCDay() + 6) % 7));
@@ -48,8 +55,8 @@ export function weekNumber(date) {
   return 1 + Math.round(((t - firstThursday) / 86400000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
 }
 
-// "2026-11-10" -> "Di, 10. Nov"
+// "2026-11-10" -> "Di, 10. Nov" / "Tu, 10 Nov"
 export function formatShort(text) {
   const d = fromISO(text);
-  return `${WEEKDAYS[weekdayIndex(d)]}, ${d.getDate()}. ${MONTHS[d.getMonth()].slice(0, 3)}`;
+  return `${weekdays()[weekdayIndex(d)]}, ${dayMonth(d, true)}`;
 }

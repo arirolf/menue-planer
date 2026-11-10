@@ -2,21 +2,23 @@
   import { slide } from 'svelte/transition';
   import RecipeSheet from './RecipeSheet.svelte';
   import { TIME_LABELS } from './constants.js';
+  import { t } from './i18n.svelte.js';
 
   const EATERS_KEY = 'menu.eaters';
 
-  const timeFilters = [
-    { value: 6, label: 'Egal' },
+  // $derived so the labels follow the language
+  let timeFilters = $derived([
+    { value: 6, label: t('planner.any') },
     { value: 2, label: '≤ 20 min' },
     { value: 3, label: '≤ 30 min' },
     { value: 5, label: '≤ 60 min' },
-  ];
+  ]);
 
-  const difficultyFilters = [
-    { value: 3, label: 'Egal' },
+  let difficultyFilters = $derived([
+    { value: 3, label: t('planner.any') },
     { value: 1, label: '🔪' },
     { value: 2, label: '🔪🔪' },
-  ];
+  ]);
 
   let recipes = $state([]);
   let users = $state([]);
@@ -90,7 +92,7 @@
         fetch('/api/lists'),
         fetch('/api/calendars'),
       ]);
-      if (!rRes.ok) throw new Error('Rezepte konnten nicht geladen werden');
+      if (!rRes.ok) throw new Error(t('common.loadRecipesFailed'));
       recipes = await rRes.json();
       if (uRes.ok) {
         users = await uRes.json();
@@ -132,17 +134,17 @@
 </script>
 
 <div class="page">
-  <h1>Was kochen wir?</h1>
+  <h1>{t('app.title')}</h1>
 
   <input
     type="text"
     class="search"
     bind:value={search}
-    placeholder="🔍 Rezept oder Zutat suchen…"
+    placeholder={t('planner.search')}
   />
 
   <button class="filter-toggle" onclick={() => (showFilters = !showFilters)}>
-    <span>⚙️ Filter</span>
+    <span>{t('planner.filter')}</span>
     {#if filterSummary}<span class="summary">{filterSummary}</span>{/if}
     <span class="arrow">{showFilters ? '▲' : '▼'}</span>
   </button>
@@ -151,7 +153,7 @@
     <section class="filters" transition:slide={{ duration: 200 }}>
       {#if users.length > 0}
         <div>
-          <span class="label">Wer isst mit?</span>
+          <span class="label">{t('planner.eaters')}</span>
           <div class="chips">
             {#each users as u (u.id)}
               <button
@@ -167,7 +169,7 @@
       {/if}
 
       <div>
-        <span class="label">Zeit</span>
+        <span class="label">{t('common.time')}</span>
         <div class="chips">
           {#each timeFilters as f}
             <button
@@ -182,7 +184,7 @@
       </div>
 
       <div>
-        <span class="label">Max. Aufwand</span>
+        <span class="label">{t('planner.maxEffort')}</span>
         <div class="chips">
           {#each difficultyFilters as f}
             <button
@@ -200,19 +202,19 @@
 
   <button class="dice" onclick={surprise} disabled={loading || filtered.length === 0}>
     <span class="dice-icon" style="transform: rotate({spin}deg)">🎲</span>
-    Egal, überrasch mich!
+    {t('planner.surprise')}
   </button>
 
   {#if error}<p class="error">{error}</p>{/if}
 
   {#if loading}
-    <p class="muted">Lade…</p>
+    <p class="muted">{t('common.loading')}</p>
   {:else if recipes.length === 0}
-    <p class="muted">Noch keine Rezepte. Leg im 📖 Tab welche an!</p>
+    <p class="muted">{t('planner.noRecipes')}</p>
   {:else if filtered.length === 0}
-    <p class="muted">Nichts passt zu diesen Filtern 🤷</p>
+    <p class="muted">{t('planner.noMatch')}</p>
   {:else}
-    <p class="count">{filtered.length} {filtered.length === 1 ? 'Rezept passt' : 'Rezepte passen'}</p>
+    <p class="count">{t(filtered.length === 1 ? 'planner.matchOne' : 'planner.matchMany', { n: filtered.length })}</p>
     <ul class="results">
       {#each filtered as r (r.id)}
         <li>

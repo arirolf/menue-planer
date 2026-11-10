@@ -1,6 +1,7 @@
 <script>
   import { fly, fade } from 'svelte/transition';
-  import { SLOT_LABELS, formatShort } from './dates.js';
+  import { slotLabel, formatShort } from './dates.js';
+  import { t } from './i18n.svelte.js';
 
   let { calendarId, date, slot, meal = null, recipes = [], onclose, onsaved } = $props();
 
@@ -18,7 +19,7 @@
     event.preventDefault();
     error = '';
     if (!recipeId && !title.trim() && !note.trim()) {
-      error = 'Wähle ein Rezept, schreib etwas oder füge eine Info hinzu';
+      error = t('meal.needSomething');
       return;
     }
 
@@ -38,8 +39,8 @@
           note,
         }),
       });
-      if (res.status === 409) throw new Error('Dieser Platz ist an dem Tag schon belegt');
-      if (!res.ok) throw new Error('Speichern fehlgeschlagen');
+      if (res.status === 409) throw new Error(t('meal.slotTaken'));
+      if (!res.ok) throw new Error(t('common.saveFailed'));
       onsaved();
     } catch (e) {
       error = e.message;
@@ -49,10 +50,10 @@
   }
 
   async function remove() {
-    if (!confirm('Diesen Eintrag löschen?')) return;
+    if (!confirm(t('meal.confirmDelete'))) return;
     try {
       const res = await fetch(`/api/calendars/${calendarId}/meals/${meal.id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Löschen fehlgeschlagen');
+      if (!res.ok) throw new Error(t('common.deleteFailed'));
       onsaved();
     } catch (e) {
       error = e.message;
@@ -60,16 +61,16 @@
   }
 </script>
 
-<button class="backdrop" aria-label="Schliessen" onclick={onclose} transition:fade={{ duration: 150 }}></button>
+<button class="backdrop" aria-label={t('common.close')} onclick={onclose} transition:fade={{ duration: 150 }}></button>
 
 <form class="sheet" onsubmit={save} transition:fly={{ y: 300, duration: 250 }}>
-  <h2>{isEdit ? 'Essen bearbeiten' : 'Essen planen'}</h2>
-  <p class="sub">{formatShort(date)} · {SLOT_LABELS[slot]}</p>
+  <h2>{t(isEdit ? 'meal.edit' : 'meal.new')}</h2>
+  <p class="sub">{formatShort(date)} · {slotLabel(slot)}</p>
 
   <div class="field">
-    <label class="label" for="recipe">Rezept</label>
+    <label class="label" for="recipe">{t('meal.recipe')}</label>
     <select id="recipe" bind:value={recipeId}>
-      <option value="">— Kein Rezept / eigener Text —</option>
+      <option value="">{t('meal.noRecipe')}</option>
       {#each recipes as r (r.id)}
         <option value={r.id}>{r.name}</option>
       {/each}
@@ -78,24 +79,24 @@
 
   {#if !recipeId}
     <div class="field">
-      <label class="label" for="title">Eigener Text</label>
-      <input id="title" type="text" bind:value={title} placeholder="z.B. Pizza bestellen" />
+      <label class="label" for="title">{t('meal.ownText')}</label>
+      <input id="title" type="text" bind:value={title} placeholder={t('meal.titlePlaceholder')} />
     </div>
   {/if}
 
   <div class="field">
-    <label class="label" for="note">Info (optional)</label>
-    <textarea id="note" bind:value={note} placeholder="z.B. Andri isst auswärts, Lunchbox mitnehmen"></textarea>
+    <label class="label" for="note">{t('common.note')}</label>
+    <textarea id="note" bind:value={note} placeholder={t('meal.notePlaceholder')}></textarea>
   </div>
 
   {#if isEdit}
     <div class="field">
-      <span class="label">Verschieben</span>
+      <span class="label">{t('meal.move')}</span>
       <div class="row">
         <input type="date" bind:value={newDate} required />
         <select bind:value={newSlot}>
-          <option value="lunch">Mittag</option>
-          <option value="dinner">Abend</option>
+          <option value="lunch">{t('slot.lunch')}</option>
+          <option value="dinner">{t('slot.dinner')}</option>
         </select>
       </div>
     </div>
@@ -104,14 +105,14 @@
   {#if error}<p class="error">{error}</p>{/if}
 
   <div class="sheet-actions">
-    <button type="button" class="ghost" onclick={onclose}>Abbrechen</button>
+    <button type="button" class="ghost" onclick={onclose}>{t('common.cancel')}</button>
     <button type="submit" class="btn-primary" disabled={saving}>
-      {saving ? 'Speichere…' : 'Speichern'}
+      {saving ? t('common.saving') : t('common.save')}
     </button>
   </div>
 
   {#if isEdit}
-    <button type="button" class="danger-link" onclick={remove}>🗑️ Eintrag löschen</button>
+    <button type="button" class="danger-link" onclick={remove}>{t('meal.delete')}</button>
   {/if}
 </form>
 

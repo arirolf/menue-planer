@@ -1,5 +1,6 @@
 <script>
   import ListDetail from './ListDetail.svelte';
+  import { t } from './i18n.svelte.js';
 
   let { currentUser } = $props();
 
@@ -19,7 +20,7 @@
     error = '';
     try {
       const res = await fetch('/api/lists');
-      if (!res.ok) throw new Error('Listen konnten nicht geladen werden');
+      if (!res.ok) throw new Error(t('lists.loadFailed'));
       lists = await res.json();
     } catch (e) {
       error = e.message;
@@ -38,7 +39,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newName }),
       });
-      if (!res.ok) throw new Error('Erstellen fehlgeschlagen');
+      if (!res.ok) throw new Error(t('common.createFailed'));
       const data = await res.json();
       newName = '';
       selectedId = data.id;
@@ -68,7 +69,7 @@
               <span class="text">
                 <span class="name">{l.name}</span>
                 {#if l.owner_name && l.owner_id !== currentUser.id}
-                  <span class="meta">von {l.owner_name}</span>
+                  <span class="meta">{t('lists.by', { name: l.owner_name })}</span>
                 {/if}
               </span>
               <span class="count" class:zero={l.open_count === 0}>{l.open_count}</span>
@@ -84,22 +85,22 @@
   <ListDetail id={selectedId} {currentUser} onback={back} />
 {:else}
   <div class="page">
-    <h1>Einkaufslisten</h1>
+    <h1>{t('lists.title')}</h1>
 
     {#if error}<p class="error">{error}</p>{/if}
 
     {#if loading}
-      <p class="muted">Lade…</p>
+      <p class="muted">{t('common.loading')}</p>
     {:else}
-      {@render group('🏠 Haushalt', householdLists, 'Du bist noch in keinem Haushalt')}
-      {@render group('📝 Meine Listen', myLists, 'Noch keine eigenen Listen')}
+      {@render group(t('lists.household'), householdLists, t('lists.noHousehold'))}
+      {@render group(t('lists.mine'), myLists, t('lists.noneMine'))}
       {#if sharedLists.length > 0}
-        {@render group('👥 Mit mir geteilt', sharedLists, '')}
+        {@render group(t('lists.shared'), sharedLists, '')}
       {/if}
 
       <form class="create" onsubmit={create}>
-        <input type="text" bind:value={newName} placeholder="Neue Liste, z.B. Grillparty" />
-        <button type="submit" class="btn-primary small">Erstellen</button>
+        <input type="text" bind:value={newName} placeholder={t('lists.newPlaceholder')} />
+        <button type="submit" class="btn-primary small">{t('common.create')}</button>
       </form>
     {/if}
   </div>

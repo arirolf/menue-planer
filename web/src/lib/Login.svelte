@@ -1,4 +1,6 @@
 <script>
+  import { t } from './i18n.svelte.js';
+
   let { onlogin } = $props();
 
   let username = $state('');
@@ -16,8 +18,8 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
-      if (res.status === 401) throw new Error('Benutzername oder Passwort falsch');
-      if (!res.ok) throw new Error('Login fehlgeschlagen, bitte nochmal versuchen');
+      if (res.status === 401) throw new Error(t('login.wrong'));
+      if (!res.ok) throw new Error(t('login.failed'));
       onlogin(await res.json());
     } catch (e) {
       error = e.message;
@@ -31,11 +33,11 @@
 <div class="wrapper">
   <form class="card" onsubmit={submit}>
     <div class="logo">🍽️</div>
-    <h1>Was kochen wir?</h1>
-    <p class="subtitle">Bitte melde dich an</p>
+    <h1>{t('app.title')}</h1>
+    <p class="subtitle">{t('login.subtitle')}</p>
 
     <div class="field">
-      <label class="label" for="username">Benutzername</label>
+      <label class="label" for="username">{t('login.username')}</label>
       <input
         id="username"
         type="text"
@@ -48,7 +50,7 @@
     </div>
 
     <div class="field">
-      <label class="label" for="password">Passwort</label>
+      <label class="label" for="password">{t('login.password')}</label>
       <input
         id="password"
         type="password"
@@ -59,7 +61,7 @@
     </div>
 
     <button type="submit" class="btn-primary login" disabled={loading}>
-      {loading ? 'Melde an…' : 'Anmelden'}
+      {loading ? t('login.submitting') : t('login.submit')}
     </button>
 
     {#if error}<p class="error">{error}</p>{/if}

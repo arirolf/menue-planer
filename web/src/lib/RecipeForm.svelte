@@ -1,5 +1,6 @@
 <script>
-  import { TIME_LABELS, DIFFICULTY_LABELS } from './constants.js';
+  import { TIME_LABELS } from './constants.js';
+  import { t } from './i18n.svelte.js';
 
   // Props: what the parent component passes in
   let { recipe = null, onsaved = () => {}, oncancel = null } = $props();
@@ -33,7 +34,7 @@
     message = '';
 
     if (!name.trim()) {
-      error = 'Bitte einen Namen eingeben';
+      error = t('recipeForm.nameRequired');
       return;
     }
 
@@ -53,14 +54,14 @@
           ingredients: cleaned,
         }),
       });
-      if (!res.ok) throw new Error('Speichern fehlgeschlagen');
+      if (!res.ok) throw new Error(t('common.saveFailed'));
 
       if (isEdit) {
         onsaved();
         return;
       }
 
-      message = `„${name.trim()}" gespeichert! 🎉`;
+      message = t('recipeForm.saved', { name: name.trim() });
       name = '';
       timeRange = 3;
       difficulty = 1;
@@ -74,16 +75,16 @@
 </script>
 
 <div class="page">
-  <h1>{isEdit ? 'Rezept bearbeiten' : 'Neues Rezept'}</h1>
+  <h1>{t(isEdit ? 'recipeForm.edit' : 'recipeForm.new')}</h1>
 
   <form onsubmit={save}>
     <div class="field">
-      <label class="label" for="name">Name</label>
-      <input id="name" type="text" bind:value={name} placeholder="z.B. Älplermagronen" />
+      <label class="label" for="name">{t('common.name')}</label>
+      <input id="name" type="text" bind:value={name} placeholder={t('recipeForm.namePlaceholder')} />
     </div>
 
     <div class="field">
-      <span class="label">Zeit</span>
+      <span class="label">{t('common.time')}</span>
       <div class="chips">
         {#each TIME_LABELS.slice(1) as label, i}
           <button
@@ -99,7 +100,7 @@
     </div>
 
     <div class="field">
-      <span class="label">Aufwand</span>
+      <span class="label">{t('common.effort')}</span>
       <div class="chips">
         {#each [1, 2, 3] as level}
           <button
@@ -112,34 +113,35 @@
           </button>
         {/each}
       </div>
-      <p class="hint">{DIFFICULTY_LABELS[difficulty]}</p>
+      <p class="hint">{t('recipe.difficulty')[difficulty]}</p>
     </div>
 
     <div class="field">
-      <span class="label">Zutaten</span>
+      <span class="label">{t('common.ingredients')}</span>
       {#each ingredients as ing, i}
         <div class="ingredient-row">
-          <input type="text" class="amount" bind:value={ing.amount} placeholder="500 g" />
-          <input type="text" bind:value={ing.name} placeholder="Zutat" />
+          <input type="text" class="amount" bind:value={ing.amount} placeholder={t('recipeForm.amountPlaceholder')} />
+          <input type="text" bind:value={ing.name} placeholder={t('recipeForm.ingredientPlaceholder')} />
           <button
             type="button"
             class="remove"
             onclick={() => removeIngredient(i)}
             disabled={ingredients.length === 1}
-            aria-label="Zutat entfernen"
+            aria-label={t('recipeForm.removeIngredient')}
           >
             ✕
           </button>
         </div>
       {/each}
-      <button type="button" class="add" onclick={addIngredient}>+ Zutat hinzufügen</button>
+      <button type="button" class="add" onclick={addIngredient}>{t('recipeForm.addIngredient')}</button>
     </div>
 
     <div class="actions">
       {#if oncancel}
-        <button type="button" class="cancel" onclick={oncancel}>{isEdit ? 'Abbrechen' : 'Zurück'}</button>      {/if}
+        <button type="button" class="cancel" onclick={oncancel}>{t(isEdit ? 'common.cancel' : 'common.back')}</button>
+      {/if}
       <button type="submit" class="btn-primary save" disabled={saving}>
-        {saving ? 'Speichere…' : 'Rezept speichern'}
+        {saving ? t('common.saving') : t('recipeForm.save')}
       </button>
     </div>
 

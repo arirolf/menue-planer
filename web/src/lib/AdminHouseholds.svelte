@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n.svelte.js';
   let households = $state([]);
   let users = $state([]);
   let loading = $state(true);
@@ -17,7 +18,7 @@
         fetch('/api/admin/households'),
         fetch('/api/admin/users'),
       ]);
-      if (!hRes.ok || !uRes.ok) throw new Error('Haushalte konnten nicht geladen werden');
+      if (!hRes.ok || !uRes.ok) throw new Error(t('households.loadFailed'));
       households = await hRes.json();
       users = await uRes.json();
     } catch (e) {
@@ -37,7 +38,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newName }),
       });
-      if (!res.ok) throw new Error('Erstellen fehlgeschlagen');
+      if (!res.ok) throw new Error(t('common.createFailed'));
       const data = await res.json();
       newName = '';
       await load();
@@ -63,7 +64,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: editName }),
         });
-        if (!res.ok) throw new Error('Umbenennen fehlgeschlagen');
+        if (!res.ok) throw new Error(t('households.renameFailed'));
       }
 
       const res = await fetch(`/api/admin/households/${household.id}/members`, {
@@ -71,7 +72,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_ids: editMembers }),
       });
-      if (!res.ok) throw new Error('Mitglieder speichern fehlgeschlagen');
+      if (!res.ok) throw new Error(t('households.membersFailed'));
 
       editingId = null;
       await load();
@@ -81,11 +82,11 @@
   }
 
   async function remove(household) {
-    if (!confirm(`Haushalt „${household.name}" und seine Einkaufsliste wirklich löschen?`)) return;
+    if (!confirm(t('households.confirmDelete', { name: household.name }))) return;
     error = '';
     try {
       const res = await fetch(`/api/admin/households/${household.id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Löschen fehlgeschlagen');
+      if (!res.ok) throw new Error(t('common.deleteFailed'));
       households = households.filter((h) => h.id !== household.id);
     } catch (e) {
       error = e.message;
@@ -96,28 +97,28 @@
 </script>
 
 <section class="households">
-  <h2>🏠 Haushalte</h2>
+  <h2>{t('households.title')}</h2>
 
   <form class="create" onsubmit={create}>
-    <input type="text" bind:value={newName} placeholder="z.B. Familie R." />
-    <button type="submit" class="btn-primary small">Erstellen</button>
+    <input type="text" bind:value={newName} placeholder={t('households.placeholder')} />
+    <button type="submit" class="btn-primary small">{t('common.create')}</button>
   </form>
 
   {#if error}<p class="error">{error}</p>{/if}
 
   {#if loading}
-    <p class="muted">Lade…</p>
+    <p class="muted">{t('common.loading')}</p>
   {:else if households.length === 0}
-    <p class="muted">Noch keine Haushalte</p>
+    <p class="muted">{t('households.none')}</p>
   {:else}
     <ul class="list">
       {#each households as h (h.id)}
         <li class="household">
           {#if editingId === h.id}
-            <span class="label">Name</span>
+            <span class="label">{t('common.name')}</span>
             <input type="text" bind:value={editName} />
 
-            <span class="label spaced">Mitglieder</span>
+            <span class="label spaced">{t('households.members')}</span>
             <div class="user-grid">
               {#each users as u (u.id)}
                 <label class="user-check">
@@ -128,20 +129,20 @@
             </div>
 
             <div class="edit-actions">
-              <button class="ghost" onclick={() => (editingId = null)}>Abbrechen</button>
-              <button class="btn-primary small" onclick={() => saveEdit(h)}>Speichern</button>
+              <button class="ghost" onclick={() => (editingId = null)}>{t('common.cancel')}</button>
+              <button class="btn-primary small" onclick={() => saveEdit(h)}>{t('common.save')}</button>
             </div>
           {:else}
             <div class="head">
               <span class="name">{h.name}</span>
-              <button class="icon-btn" onclick={() => startEdit(h)} title="Bearbeiten">✏️</button>
-              <button class="icon-btn danger" onclick={() => remove(h)} title="Löschen">🗑️</button>
+              <button class="icon-btn" onclick={() => startEdit(h)} title={t('common.edit')}>✏️</button>
+              <button class="icon-btn danger" onclick={() => remove(h)} title={t('common.delete')}>🗑️</button>
             </div>
             <div class="members">
               {#each h.members as m (m.id)}
                 <span class="member">{m.username}</span>
               {:else}
-                <span class="no-members">Keine Mitglieder</span>
+                <span class="no-members">{t('households.noMembers')}</span>
               {/each}
             </div>
           {/if}

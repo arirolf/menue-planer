@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
-import { MONTHS, WEEKDAYS_LONG, toISO, addDays, startOfWeek, weekdayIndex } from './dates.js';
+import { months, weekdaysLong, toISO, addDays, startOfWeek, weekdayIndex } from './dates.js';
+import { t, locale } from './i18n.svelte.js';
 
 const PAGE_W = 297; // A4 landscape, in mm
 const PAGE_H = 210;
@@ -35,14 +36,14 @@ function drawDay(doc, entry, dayNumber, x, y, w, h) {
   }
 
   const rows = [];
-  for (const [slot, letter] of [['lunch', 'M'], ['dinner', 'A']]) {
+  for (const [slot, letter] of [['lunch', t('pdf.lunchLetter')], ['dinner', t('pdf.dinnerLetter')]]) {
     const meal = entry[slot];
     if (!meal) continue;
     rows.push([`${letter}: ${clean(meal.title) || '–'}`, 'bold']);
     if (meal.note) rows.push([`» ${clean(meal.note)}`, 'italic', 6.8]);
   }
   for (const trip of entry.trips) {
-    rows.push([['E:', trip.time, clean(trip.list_name)].filter(Boolean).join(' '), 'normal']);
+    rows.push([[t('pdf.tripLetter'), trip.time, clean(trip.list_name)].filter(Boolean).join(' '), 'normal']);
     if (trip.note) rows.push([`» ${clean(trip.note)}`, 'italic', 6.8]);
   }
 
@@ -67,7 +68,7 @@ export function createMonthPdf({ calendarName, year, month, meals, trips }) {
   // ----- Title -----
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(20);
-  doc.text(`Menüplan ${MONTHS[month]} ${year}`, MARGIN, MARGIN + 7);
+  doc.text(t('pdf.title', { month: months()[month], year }), MARGIN, MARGIN + 7);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.text(clean(calendarName), PAGE_W - MARGIN, MARGIN + 7, { align: 'right' });
@@ -92,7 +93,7 @@ export function createMonthPdf({ calendarName, year, month, meals, trips }) {
   doc.rect(MARGIN, top, colW * 7, headerH, 'FD');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
-  WEEKDAYS_LONG.forEach((name, i) => {
+  weekdaysLong().forEach((name, i) => {
     doc.text(name, MARGIN + i * colW + colW / 2, top + 4.8, { align: 'center' });
     if (i > 0) doc.line(MARGIN + i * colW, top, MARGIN + i * colW, top + headerH);
   });
@@ -118,13 +119,13 @@ export function createMonthPdf({ calendarName, year, month, meals, trips }) {
   // ----- Footer -----
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
-  doc.text('M = Mittag    A = Abend    E = Einkauf    » = Info', MARGIN, PAGE_H - MARGIN - 1);
+  doc.text(t('pdf.legend'), MARGIN, PAGE_H - MARGIN - 1);
   doc.text(
-    `Erstellt am ${new Date().toLocaleDateString('de-CH')}`,
+    t('pdf.created', { date: new Date().toLocaleDateString(locale()) }),
     PAGE_W - MARGIN,
     PAGE_H - MARGIN - 1,
     { align: 'right' }
   );
 
-  doc.save(`Menueplan-${year}-${String(month + 1).padStart(2, '0')}.pdf`);
+  doc.save(`${t('pdf.filename')}-${year}-${String(month + 1).padStart(2, '0')}.pdf`);
 }

@@ -1,4 +1,6 @@
 <script>
+  import { t } from './i18n.svelte.js';
+
   let { user, onsave, onback } = $props();
 
   const LANGUAGES = [
@@ -21,7 +23,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(changes),
       });
-      if (!res.ok) throw new Error('Speichern fehlgeschlagen');
+      if (!res.ok) throw new Error(t('common.saveFailed'));
       onsave(await res.json());
       saved = true;
     } catch (e) {
@@ -33,11 +35,11 @@
 </script>
 
 <div class="page">
-  <button class="back" onclick={onback}>← Zurück</button>
-  <h1>⚙️ Einstellungen</h1>
+  <button class="back" onclick={onback}>← {t('common.back')}</button>
+  <h1>{t('settings.title')}</h1>
 
   <section class="card">
-    <span class="label">Sprache</span>
+    <span class="label">{t('settings.language')}</span>
     <div class="chips">
       {#each LANGUAGES as lang}
         <button
@@ -53,7 +55,7 @@
   </section>
 
   {#if error}<p class="error">{error}</p>{/if}
-  {#if saved}<p class="success">Gespeichert ✓</p>{/if}
+  {#if saved}<p class="success">{t('settings.saved')}</p>{/if}
 </div>
 
 <style>

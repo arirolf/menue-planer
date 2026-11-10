@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A household meal planner ("Was kochen wir?"): recipes, random "what do we cook" picks, a shared meal/shopping calendar, and shopping lists. Express 5 + SQLite backend in the repo root, Svelte 5 + Vite SPA in `web/`. UI text is German.
+A household meal planner ("Was kochen wir?"): recipes, random "what do we cook" picks, a shared meal/shopping calendar, and shopping lists. Express 5 + SQLite backend in the repo root, Svelte 5 + Vite SPA in `web/`. The UI is German and English.
 
 ## Commands
 
@@ -54,6 +54,9 @@ For local dev run the backend with `PORT=4102` and the Vite dev server together;
 
 - No router: `web/src/App.svelte` checks `/api/auth/me`, then switches between tab components in `web/src/lib/` via a `page` state variable. Admin tab shows only for `is_admin` users.
 - Svelte 5 runes (`$state`, `$derived`, `$props`), plain `fetch('/api/...')` calls in each component — no shared API client or store.
-- `lib/constants.js` holds label tables for recipe `time_range` (1–6) and `difficulty` (1–3), which must match the CHECK constraints in the DB.
+- **All UI text goes through `t('key', { params })`** from `lib/i18n.svelte.js`. Texts live in `lib/messages.js`, German and English side by side per key; never hardcode UI strings in components. `t()` reads reactive state, so call it in markup or `$derived` (not in a plain top-level `const`) or the text won't switch with the language. Values can be arrays (weekdays, months, difficulty labels).
+- The language comes from `users.language` (changed via `PATCH /api/auth/me` from the settings page) and is mirrored to `localStorage` so the login screen uses the last one. Server error messages are English and not translated.
+- `lib/dates.js` exposes `weekdays()`, `months()`, `slotLabel()`, `dayMonth()` as functions for the same reason; use `locale()` from i18n for `toLocale*` calls.
+- `lib/constants.js` holds the time labels for recipe `time_range` (1–6); difficulty (1–3) labels are `t('recipe.difficulty')`. Both ranges must match the DB CHECK constraints.
 - `lib/pdf.js` builds the week PDF export with jsPDF; `lib/dates.js` has date helpers.
 - `public/index.html` in the repo root is an old standalone page and is not served; the app is `web/dist`.
