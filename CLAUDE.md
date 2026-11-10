@@ -26,6 +26,8 @@ node create-user.js <username> [--admin] [--reset]   # prints a generated passwo
 
 # Production
 docker compose up -d --build        # port 4100 on 127.0.0.1, DB at ./data/menu.db
+# docker-entrypoint.sh starts as root, fixes /data ownership, then runs as "node" (su-exec).
+# Use `docker compose exec -u node ...` for create-user.js so DB files stay owned by node.
 ```
 
 For local dev run the backend with `PORT=4102` and the Vite dev server together; the default port 4100 won't match the proxy.
@@ -33,7 +35,8 @@ For local dev run the backend with `PORT=4102` and the Vite dev server together;
 ## Database and migrations
 
 - DB file comes from `DB_PATH` (default `./menu.db`; `/data/menu.db` in Docker). Both `menu.db` and `data/` are gitignored.
-- `schema.sql` is the original base schema (users, recipes, ingredients, …) and is **not** applied by code — a fresh DB needs it loaded first (e.g. `sqlite3 menu.db < schema.sql`). It is also not copied into the Docker image.
+- `schema.sql` is the original base schema (users, recipes, ingredients, …). `db.js` applies it automatically when the DB has no `users` table yet (fresh install), then runs the migrations. Don't edit it for schema changes; add a migration instead.
+- On the first start with no users, `server.js` creates an admin (`ADMIN_USERNAME`, default `admin`; `ADMIN_PASSWORD` or a generated password printed to the log).
 - Every later schema change lives in `db.js` as idempotent startup migrations: `CREATE TABLE IF NOT EXISTS`, or `PRAGMA table_info` checks before `ALTER TABLE`. Add new migrations there in the same style, appended at the end. The `shopping_lists` rebuild refuses to run if the table already has data — don't write destructive migrations.
 - Use `transaction(fn)` from `db.js` for multi-statement writes. Queries use synchronous `db.prepare(...).get/all/run`.
 - SQLite booleans are stored as `0/1`; routes convert `is_admin` to a real boolean before sending JSON.
@@ -42,7 +45,8 @@ For local dev run the backend with `PORT=4102` and the Vite dev server together;
 
 - `server.js`: app setup, login route, then `app.use('/api', requireAuth)` — **every `/api` route registered after that line requires a session**. Also holds recipe, user-admin and household-admin routes inline.
 - `lists.js` and `calendars.js` are Express routers mounted at `/api/lists`, `/api/calendars`, and `/api/admin/calendars` (`adminRouter`, guarded by `requireAdmin`).
-- `auth.js`: scrypt password hashes, session tokens stored as SHA-256 hashes in `sessions`, cookie `menu_session` (90 days), `requireAuth` (sets `req.user`) and `requireAdmin` middleware.
+- `auth.js`: scrypt password hashes, session tokens stored as SHA-256 hashes in `sessions`, cookie `menu_session` (90 days), `requireAuth` (sets `req.user`) and `requireAdmin` middleware. The cookie is `secure` when `req.secure` (HTTPS, or `X-Forwarded-Proto` from a trusted proxy; `trust proxy` defaults to private networks, override with `TRUST_PROXY`), so plain http on a LAN still works.
+- The public `README.md` documents install and configuration; keep it in sync when changing env vars, Docker setup or features.
 - Access model:
   - **Households** group users. Creating a household also creates its shared shopping list (`shopping_lists.household_id`, renamed together). A list has either `owner_id` (personal) or `household_id`, never both.
   - **Lists**: visible if you own it, are a `list_members` row, or are in its household. `loadList` middleware checks this; owner-only actions use `requireOwner`.

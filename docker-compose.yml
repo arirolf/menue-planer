@@ -5,7 +5,11 @@ services:
     restart: unless-stopped
     environment:
       - PORT=4100
+      # Name of the admin created on the very first start (password is printed in the logs)
+      # - ADMIN_USERNAME=admin
     volumes:
       - ./data:/data
     ports:
+      # Only reachable from this machine (for a reverse proxy with HTTPS).
+      # To open it on your home network instead, use "4100:4100".
       - "127.0.0.1:4100:4100"

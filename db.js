@@ -1,7 +1,22 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 
-export const db = new DatabaseSync(process.env.DB_PATH || 'menu.db');
+const DB_PATH = process.env.DB_PATH || 'menu.db';
+fs.mkdirSync(path.dirname(path.resolve(DB_PATH)), { recursive: true });
+
+export const db = new DatabaseSync(DB_PATH);
 db.exec('PRAGMA foreign_keys = ON');
+
+// ---------- Base schema (fresh install) ----------
+// A new, empty database gets schema.sql first; the migrations below build on it
+const hasUsers = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'users'").get();
+if (!hasUsers) {
+  const dir = path.dirname(fileURLToPath(import.meta.url));
+  db.exec(fs.readFileSync(path.join(dir, 'schema.sql'), 'utf8'));
+  console.log('Created a new database');
+}
 
 // Run several statements as one all-or-nothing block
 export function transaction(fn) {

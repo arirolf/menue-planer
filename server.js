@@ -25,6 +25,9 @@ import {
 cleanupSessions();
 
 const app = express();
+// Behind a reverse proxy (Caddy, Nginx, Cloudflare Tunnel …) on the same machine
+// or Docker network, trust its X-Forwarded-Proto so req.secure knows about HTTPS
+app.set('trust proxy', process.env.TRUST_PROXY || 'loopback, linklocal, uniquelocal');
 app.use(express.json());
 app.use(cookieParser());
 
@@ -123,7 +126,8 @@ app.post('/api/auth/login', (req, res) => {
   res.cookie(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    // Secure on HTTPS; plain http (e.g. http://192.168.1.10:4100 at home) still works
+    secure: req.secure,
     expires: new Date(expiresAt),
   });
   res.json(publicUser(user));
@@ -461,6 +465,24 @@ app.put('/api/admin/households/:id/members', requireAdmin, (req, res) => {
   });
   res.json({ ok: true });
 });
+
+// ---------- First start: create an admin ----------
+
+if (db.prepare('SELECT COUNT(*) AS n FROM users').get().n === 0) {
+  const username = (process.env.ADMIN_USERNAME || 'admin').trim().toLowerCase();
+  if (!USERNAME_PATTERN.test(username)) {
+    console.error('ADMIN_USERNAME: 2-30 characters, only a-z, 0-9, _ and -');
+    process.exit(1);
+  }
+  const password = process.env.ADMIN_PASSWORD || generatePassword();
+  db.prepare('INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, 1)')
+    .run(username, hashPassword(password));
+  console.log('==================================================');
+  console.log(`First start: created admin "${username}"`);
+  if (!process.env.ADMIN_PASSWORD) console.log(`Password: ${password}`);
+  console.log('Log in and add more users in the Admin tab.');
+  console.log('==================================================');
+}
 
 // ---------- Start ----------
 
