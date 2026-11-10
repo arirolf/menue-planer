@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
@@ -8,6 +9,7 @@ import calendarsRouter, { adminRouter as adminCalendarsRouter } from './calendar
 import { PRESET_SERVINGS } from './shared/scale.js';
 import {
   checkLogin,
+  getSessionUser,
   createSession,
   deleteSession,
   deleteUserSessions,
@@ -28,6 +30,22 @@ app.use(cookieParser());
 
 // Serve the built Svelte app (web/dist)
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// The installed Android app colors the phone's bottom bar from the manifest's
+// theme_color (the page can't change it), so each user gets their frame color here.
+// Must come before express.static, which would serve the plain file.
+app.get('/manifest.webmanifest', (req, res, next) => {
+  let manifest;
+  try {
+    manifest = JSON.parse(fs.readFileSync(path.join(__dirname, 'web', 'dist', 'manifest.webmanifest'), 'utf8'));
+  } catch {
+    return next();
+  }
+  const user = getSessionUser(req.cookies[SESSION_COOKIE]);
+  if (user) manifest.theme_color = user.color_frame ?? user.color_main ?? manifest.theme_color;
+  res.set('Cache-Control', 'no-cache').type('application/manifest+json').send(JSON.stringify(manifest));
+});
+
 app.use(express.static(path.join(__dirname, 'web', 'dist')));
 
 // ---------- Helpers ----------
