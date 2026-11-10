@@ -26,6 +26,25 @@ export const SECONDARY_PRESETS = [
   { value: '#f4a582', show: '#f4a582' },
 ];
 
+// Frame = the phone's status bar / browser bar (<meta name="theme-color">).
+// null follows the main color; the swatch for it is filled in by the settings page.
+export const FRAME_PRESETS = [
+  { value: null, show: null },
+  { value: '#ffffff', show: '#ffffff' },
+  { value: '#faf7f2', show: '#faf7f2' },
+  { value: '#1a1714', show: '#1a1714' },
+  { value: '#e63946', show: '#e63946' },
+  { value: '#3366e6', show: '#3366e6' },
+  { value: '#2e9d5b', show: '#2e9d5b' },
+  { value: '#8e44ad', show: '#8e44ad' },
+];
+
+const DEFAULT_MAIN = '#ff6b35';
+
+export function frameColor(main, frame) {
+  return frame ?? main ?? DEFAULT_MAIN;
+}
+
 export function hexToRgb(hex) {
   const n = parseInt(hex.slice(1), 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
@@ -41,8 +60,14 @@ function textOn(hex) {
   return (r * 299 + g * 587 + b * 114) / 1000 >= 150 ? '#2b2420' : '#ffffff';
 }
 
-export function applyColors({ color_main: main = null, color_secondary: secondary = null } = {}) {
+export function applyColors({
+  color_main: main = null,
+  color_secondary: secondary = null,
+  color_frame: frame = null,
+} = {}) {
   const style = document.documentElement.style;
+
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', frameColor(main, frame));
 
   if (main) {
     style.setProperty('--accent', main);
@@ -61,7 +86,7 @@ export function applyColors({ color_main: main = null, color_secondary: secondar
   }
 
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ color_main: main, color_secondary: secondary }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ color_main: main, color_secondary: secondary, color_frame: frame }));
   } catch {
     // not remembered on this device, the server still has it
   }

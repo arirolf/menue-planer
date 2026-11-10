@@ -165,3 +165,7 @@ if (!db.prepare('PRAGMA table_info(users)').all().some((c) => c.name === 'color_
     ALTER TABLE users ADD COLUMN color_secondary TEXT;
   `);
 }
+// Phone status bar / browser bar. NULL = same as the main color.
+if (!db.prepare('PRAGMA table_info(users)').all().some((c) => c.name === 'color_frame')) {
+  db.exec('ALTER TABLE users ADD COLUMN color_frame TEXT');
+}

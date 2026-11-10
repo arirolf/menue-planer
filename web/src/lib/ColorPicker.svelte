@@ -4,7 +4,7 @@
   import { hexToRgb, rgbToHex } from './theme.js';
 
   // value: "#rrggbb" or null (= default). onpick gets called with the new value.
-  let { label, hint, value, presets, disabled = false, onpick } = $props();
+  let { label, hint, value, presets, defaultLabel = null, disabled = false, onpick } = $props();
 
   let showSliders = $state(false);
   let rgb = $state([0, 0, 0]);
@@ -39,8 +39,8 @@
         style="--c: {p.show}"
         {disabled}
         onclick={() => onpick(p.value)}
-        aria-label={i === 0 ? t('settings.default') : p.show}
-        title={i === 0 ? t('settings.default') : p.show}
+        aria-label={i === 0 ? (defaultLabel ?? t('settings.default')) : p.show}
+        title={i === 0 ? (defaultLabel ?? t('settings.default')) : p.show}
       ></button>
     {/each}
   </div>

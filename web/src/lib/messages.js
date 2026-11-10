@@ -88,6 +88,12 @@ export default {
   'settings.mainColorHint': { de: 'Knöpfe und Markierungen', en: 'Buttons and highlights' },
   'settings.secondaryColor': { de: 'Zweitfarbe', en: 'Secondary color' },
   'settings.secondaryColorHint': { de: 'Hintergrund und Flächen', en: 'Background and surfaces' },
+  'settings.frameColor': { de: 'Rahmenfarbe', en: 'Frame color' },
+  'settings.frameColorHint': {
+    de: 'Leiste oben am Handy bzw. im Browser',
+    en: 'Bar at the top of your phone or browser',
+  },
+  'settings.frameSameAsMain': { de: 'Wie Hauptfarbe', en: 'Same as main color' },
   'settings.default': { de: 'Standard', en: 'Default' },
   'settings.customColor': { de: '🎛️ Eigene Farbe', en: '🎛️ Custom color' },
   'settings.red': { de: 'Rot', en: 'Red' },

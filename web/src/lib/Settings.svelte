@@ -1,6 +1,6 @@
 <script>
   import { t } from './i18n.svelte.js';
-  import { MAIN_PRESETS, SECONDARY_PRESETS } from './theme.js';
+  import { MAIN_PRESETS, SECONDARY_PRESETS, FRAME_PRESETS, frameColor } from './theme.js';
   import ColorPicker from './ColorPicker.svelte';
 
   let { user, onsave, onback } = $props();
@@ -9,6 +9,11 @@
     { id: 'de', label: '🇩🇪 Deutsch' },
     { id: 'en', label: '🇬🇧 English' },
   ];
+
+  // The "same as main color" swatch shows whatever the main color is right now
+  let framePresets = $derived(
+    FRAME_PRESETS.map((p) => (p.value === null ? { ...p, show: frameColor(user.color_main, null) } : p))
+  );
 
   let saving = $state(false);
   let error = $state('');
@@ -73,6 +78,15 @@
       presets={SECONDARY_PRESETS}
       disabled={saving}
       onpick={(c) => save({ color_secondary: c })}
+    />
+    <ColorPicker
+      label={t('settings.frameColor')}
+      hint={t('settings.frameColorHint')}
+      value={user.color_frame}
+      presets={framePresets}
+      defaultLabel={t('settings.frameSameAsMain')}
+      disabled={saving}
+      onpick={(c) => save({ color_frame: c })}
     />
   </section>
 

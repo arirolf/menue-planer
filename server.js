@@ -85,6 +85,7 @@ function publicUser(u) {
     is_admin: u.is_admin === 1,
     color_main: u.color_main ?? null,
     color_secondary: u.color_secondary ?? null,
+    color_frame: u.color_frame ?? null,
   };
 }
 
@@ -132,7 +133,7 @@ app.patch('/api/auth/me', (req, res) => {
     changes.language = body.language;
   }
   // null = back to the default color
-  for (const key of ['color_main', 'color_secondary']) {
+  for (const key of ['color_main', 'color_secondary', 'color_frame']) {
     if (body[key] === undefined) continue;
     if (body[key] !== null && !HEX_COLOR.test(body[key])) {
       return res.status(400).json({ error: `${key} must be like #ff6b35 or null` });
