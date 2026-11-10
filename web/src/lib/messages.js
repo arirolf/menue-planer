@@ -111,6 +111,16 @@ export default {
   'planner.matchOne': { de: '{n} Rezept passt', en: '{n} recipe matches' },
   'planner.matchMany': { de: '{n} Rezepte passen', en: '{n} recipes match' },
 
+  // ---------- Servings (recipes are written for 4 people) ----------
+  'servings.label': { de: '👥 Für wie viele Personen?', en: '👥 For how many people?' },
+  'servings.custom': { de: 'Andere', en: 'Other' },
+  'servings.customLabel': { de: 'Andere Anzahl Personen', en: 'Other number of people' },
+  'servings.ingredientsFor': { de: 'Zutaten für {n} Personen', en: 'Ingredients for {n} people' },
+  'servings.addedFor': {
+    de: '✓ {n} Zutaten für {people} Personen auf „{list}"',
+    en: '✓ {n} ingredients for {people} people added to "{list}"',
+  },
+
   // ---------- Recipes ----------
   'recipes.title': { de: 'Rezepte', en: 'Recipes' },
   'recipes.new': { de: '+ Neu', en: '+ New' },
@@ -136,6 +146,12 @@ export default {
   'recipeForm.ingredientPlaceholder': { de: 'Zutat', en: 'Ingredient' },
   'recipeForm.removeIngredient': { de: 'Zutat entfernen', en: 'Remove ingredient' },
   'recipeForm.addIngredient': { de: '+ Zutat hinzufügen', en: '+ Add ingredient' },
+  'recipeForm.showPresets': { de: '👥 Mengen für 6 / 8 Personen', en: '👥 Amounts for 6 / 8 people' },
+  'recipeForm.presetsHint': {
+    de: 'Grau = automatisch berechnet. Was du selbst einträgst, bleibt so gespeichert. Feld leeren = wieder automatisch.',
+    en: 'Grey = calculated automatically. Whatever you type yourself is kept. Clear the field to go back to automatic.',
+  },
+  'recipeForm.amountFor': { de: 'Menge für {n} Personen', en: 'Amount for {n} people' },
   'recipeForm.save': { de: 'Rezept speichern', en: 'Save recipe' },
   'recipeForm.saved': { de: '„{name}" gespeichert! 🎉', en: '"{name}" saved! 🎉' },
   // Index = difficulty level (1-3)

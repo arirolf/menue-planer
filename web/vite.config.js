@@ -6,6 +6,8 @@ export default defineConfig({
   server: {
     host: true,
     port: 4101,
+    // allow importing ../shared (code used by both server and web app)
+    fs: { allow: ['..'] },
     proxy: {
       '/api': 'http://localhost:4102',
     },

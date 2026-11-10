@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import { db, transaction } from './db.js';
 import listsRouter, { validUserIds } from './lists.js';
 import calendarsRouter, { adminRouter as adminCalendarsRouter } from './calendars.js';
+import { PRESET_SERVINGS } from './shared/scale.js';
 import {
   checkLogin,
   createSession,
@@ -41,22 +42,37 @@ function validateRecipe(body) {
     if (!ing || typeof ing.name !== 'string' || !ing.name.trim()) {
       return 'Every ingredient needs a name';
     }
+    for (const key of ['amount', ...PRESET_SERVINGS.map((n) => `amount_${n}`)]) {
+      if (ing[key] != null && typeof ing[key] !== 'string') return `${key} must be text`;
+    }
   }
   return null;
 }
 
 function getIngredients(recipeId) {
   return db
-    .prepare('SELECT name, amount FROM ingredients WHERE recipe_id = ? ORDER BY id')
+    .prepare('SELECT name, amount, amount_6, amount_8 FROM ingredients WHERE recipe_id = ? ORDER BY id')
     .all(recipeId);
 }
 
+// Empty text counts as "not set"
+function cleanAmount(value) {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+// amount_6 / amount_8 are only stored when someone typed them in by hand
 function saveIngredients(recipeId, ingredients) {
   const insert = db.prepare(
-    'INSERT INTO ingredients (recipe_id, name, amount) VALUES (?, ?, ?)'
+    'INSERT INTO ingredients (recipe_id, name, amount, amount_6, amount_8) VALUES (?, ?, ?, ?, ?)'
   );
   for (const ing of ingredients) {
-    insert.run(recipeId, ing.name.trim(), ing.amount ?? null);
+    insert.run(
+      recipeId,
+      ing.name.trim(),
+      cleanAmount(ing.amount),
+      cleanAmount(ing.amount_6),
+      cleanAmount(ing.amount_8)
+    );
   }
 }
 

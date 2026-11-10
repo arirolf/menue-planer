@@ -1,5 +1,6 @@
 import express from 'express';
 import { db, transaction } from './db.js';
+import { BASE_SERVINGS, amountFor, isValidServings } from './shared/scale.js';
 
 const router = express.Router();
 
@@ -200,18 +201,41 @@ router.delete('/:id/checked', loadList, (req, res) => {
   res.status(204).end();
 });
 
-// Copy a recipe's ingredients onto this list, tagged with the recipe
+// Copy a recipe's ingredients onto this list, tagged with the recipe.
+// Optional body { servings: 6 } scales the amounts (recipes are written for 4).
 router.post('/:id/from-recipe/:recipeId', loadList, (req, res) => {
-  const r = db
-    .prepare(`
-      INSERT INTO list_items (list_id, name, amount, added_by, recipe_id, recipe_name)
-      SELECT ?, i.name, i.amount, ?, r.id, r.name
-      FROM ingredients i
-      JOIN recipes r ON r.id = i.recipe_id
-      WHERE i.recipe_id = ?
-    `)
-    .run(req.list.id, req.user.id, Number(req.params.recipeId));
-  res.status(201).json({ added: r.changes });
+  const servings = req.body?.servings ?? BASE_SERVINGS;
+  if (!isValidServings(servings)) {
+    return res.status(400).json({ error: 'servings must be a whole number from 1 to 99' });
+  }
+
+  const recipe = db
+    .prepare('SELECT id, name FROM recipes WHERE id = ?')
+    .get(Number(req.params.recipeId));
+  if (!recipe) return res.status(404).json({ error: 'Recipe not found' });
+
+  const ingredients = db
+    .prepare('SELECT name, amount, amount_6, amount_8 FROM ingredients WHERE recipe_id = ? ORDER BY id')
+    .all(recipe.id);
+  const decimal = req.user.language === 'en' ? '.' : ',';
+
+  const insert = db.prepare(`
+    INSERT INTO list_items (list_id, name, amount, added_by, recipe_id, recipe_name)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+  transaction(() => {
+    for (const ing of ingredients) {
+      insert.run(
+        req.list.id,
+        ing.name,
+        amountFor(ing, servings, { decimal }),
+        req.user.id,
+        recipe.id,
+        recipe.name
+      );
+    }
+  });
+  res.status(201).json({ added: ingredients.length });
 });
 
 export default router;

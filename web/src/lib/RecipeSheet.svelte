@@ -2,7 +2,9 @@
   import { fly, fade } from 'svelte/transition';
   import { TIME_LABELS } from './constants.js';
   import { todayISO, formatShort, slotLabel } from './dates.js';
-  import { t } from './i18n.svelte.js';
+  import { t, numberFormat } from './i18n.svelte.js';
+  import { BASE_SERVINGS, amountFor } from '../../../shared/scale.js';
+  import ServingsPicker from './ServingsPicker.svelte';
 
   let { recipeId, calendars = [], lists = [], onclose, onreroll = null } = $props();
 
@@ -16,6 +18,8 @@
   let planOk = $state(false);
 
   let targetListId = $state(lists[0]?.id ?? null);
+  // Kept when rolling again, the family size doesn't change between recipes
+  let servings = $state(BASE_SERVINGS);
   let addedMessage = $state('');
 
   async function load(id) {
@@ -60,11 +64,13 @@
     try {
       const res = await fetch(`/api/lists/${targetListId}/from-recipe/${recipe.id}`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ servings }),
       });
       if (!res.ok) throw new Error();
       const data = await res.json();
       const list = lists.find((l) => l.id === targetListId);
-      addedMessage = t('common.ingredientsAdded', { n: data.added, list: list?.name });
+      addedMessage = t('servings.addedFor', { n: data.added, people: servings, list: list?.name });
     } catch {
       addedMessage = t('common.tryAgain');
     }
@@ -88,11 +94,12 @@
     </div>
 
     {#if recipe.ingredients.length > 0}
-      <span class="label">{t('common.ingredients')}</span>
+      <ServingsPicker bind:servings />
+      <span class="label">{t('servings.ingredientsFor', { n: servings })}</span>
       <ul>
         {#each recipe.ingredients as ing}
           <li>
-            <span class="amount">{ing.amount ?? ''}</span>
+            <span class="amount">{amountFor(ing, servings, numberFormat()) ?? ''}</span>
             <span>{ing.name}</span>
           </li>
         {/each}

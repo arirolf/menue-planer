@@ -40,6 +40,11 @@ export function t(key, params) {
   return value.replace(/\{(\w+)\}/g, (match, name) => (name in params ? params[name] : match));
 }
 
+// How amounts like "1,5 dl" are written (see shared/scale.js)
+export function numberFormat() {
+  return { decimal: i18n.lang === 'en' ? '.' : ',' };
+}
+
 // For toLocaleDateString and friends
 export function locale() {
   return i18n.lang === 'en' ? 'en-GB' : 'de-CH';

@@ -47,8 +47,12 @@ For local dev run the backend with `PORT=4102` and the Vite dev server together;
   - **Households** group users. Creating a household also creates its shared shopping list (`shopping_lists.household_id`, renamed together). A list has either `owner_id` (personal) or `household_id`, never both.
   - **Lists**: visible if you own it, are a `list_members` row, or are in its household. `loadList` middleware checks this; owner-only actions use `requireOwner`.
   - **Calendars**: one per household; only household members can access (`loadCalendar`). Meals are unique per `(calendar, date, slot)` with slot `lunch|dinner`; shopping trips can link to a list.
-  - Recipes are global (any logged-in user can edit/delete). Per-user dislikes in `recipe_dislikes` filter `/api/recipes/random` via `?eaters=`.
+  - Recipes are global (any logged-in user can edit/delete). Every recipe is written for 4 people (`BASE_SERVINGS`). `ingredients.amount_6` / `amount_8` hold hand-typed amounts for 6/8 people; NULL means calculate from `amount`. Always go through `amountFor()` in `shared/scale.js`, which prefers the hand-typed value and otherwise scales the free-text amount ("300 g", "1,5 dl", "2-3"). Per-user dislikes in `recipe_dislikes` filter `/api/recipes/random` via `?eaters=`.
 - Conventions: errors are `{ error: '...' }` JSON; inaccessible resources return 404 (not 403) so their existence isn't revealed. Static routes like `/api/recipes/random` must be registered before `/:id` routes.
+
+## Shared code
+
+`shared/` holds plain JS used by both the server and the web app (`import ... from '../../../shared/scale.js'` in `web/src/lib`). It must not import anything from either side. `vite.config.js` allows `..` for the dev server, and the Dockerfile copies `shared/` into both build stages; keep those in sync if you add files elsewhere.
 
 ## Frontend architecture
 

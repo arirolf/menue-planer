@@ -3,6 +3,7 @@ FROM node:26-alpine AS web
 WORKDIR /app/web
 COPY web/package*.json ./
 RUN npm ci
+COPY shared/ ../shared/
 COPY web/ ./
 RUN npm run build
 
@@ -16,6 +17,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 
 COPY *.js ./
+COPY shared/ ./shared/
 COPY --from=web /app/web/dist ./web/dist
 
 USER node

@@ -1,6 +1,7 @@
 <script>
   import { TIME_LABELS } from './constants.js';
-  import { t } from './i18n.svelte.js';
+  import { t, numberFormat } from './i18n.svelte.js';
+  import { BASE_SERVINGS, PRESET_SERVINGS, suggestedAmount } from '../../../shared/scale.js';
 
   // Props: what the parent component passes in
   let { recipe = null, onsaved = () => {}, oncancel = null } = $props();
@@ -10,10 +11,24 @@
   let name = $state(recipe?.name ?? '');
   let timeRange = $state(recipe?.time_range ?? 3);
   let difficulty = $state(recipe?.difficulty ?? 1);
+  // amount = for 4 people. amount_6 / amount_8 are only filled when typed by hand,
+  // otherwise they're calculated (shown greyed out as a suggestion).
+  const emptyIngredient = () => ({ amount: '', name: '', amount_6: '', amount_8: '' });
+
   let ingredients = $state(
     recipe?.ingredients?.length
-      ? recipe.ingredients.map((ing) => ({ amount: ing.amount ?? '', name: ing.name }))
-      : [{ amount: '', name: '' }]
+      ? recipe.ingredients.map((ing) => ({
+          amount: ing.amount ?? '',
+          name: ing.name,
+          amount_6: ing.amount_6 ?? '',
+          amount_8: ing.amount_8 ?? '',
+        }))
+      : [emptyIngredient()]
+  );
+
+  // Open straight away if someone already typed amounts for 6 / 8
+  let showPresets = $state(
+    ingredients.some((ing) => PRESET_SERVINGS.some((n) => ing[`amount_${n}`]))
   );
 
   let saving = $state(false);
@@ -21,7 +36,7 @@
   let error = $state('');
 
   function addIngredient() {
-    ingredients.push({ amount: '', name: '' });
+    ingredients.push(emptyIngredient());
   }
 
   function removeIngredient(index) {
@@ -40,7 +55,12 @@
 
     const cleaned = ingredients
       .filter((ing) => ing.name.trim())
-      .map((ing) => ({ name: ing.name.trim(), amount: ing.amount.trim() || null }));
+      .map((ing) => ({
+        name: ing.name.trim(),
+        amount: ing.amount.trim() || null,
+        amount_6: ing.amount_6.trim() || null,
+        amount_8: ing.amount_8.trim() || null,
+      }));
 
     saving = true;
     try {
@@ -65,7 +85,7 @@
       name = '';
       timeRange = 3;
       difficulty = 1;
-      ingredients = [{ amount: '', name: '' }];
+      ingredients = [emptyIngredient()];
     } catch (e) {
       error = e.message;
     } finally {
@@ -117,9 +137,14 @@
     </div>
 
     <div class="field">
-      <span class="label">{t('common.ingredients')}</span>
+      <span class="label">{t('servings.ingredientsFor', { n: BASE_SERVINGS })}</span>
+      <button type="button" class="presets-toggle" onclick={() => (showPresets = !showPresets)}>
+        {t('recipeForm.showPresets')} {showPresets ? '▲' : '▼'}
+      </button>
+      {#if showPresets}<p class="hint presets-hint">{t('recipeForm.presetsHint')}</p>{/if}
+
       {#each ingredients as ing, i}
-        <div class="ingredient-row">
+        <div class="ingredient-row" class:grouped={showPresets}>
           <input type="text" class="amount" bind:value={ing.amount} placeholder={t('recipeForm.amountPlaceholder')} />
           <input type="text" bind:value={ing.name} placeholder={t('recipeForm.ingredientPlaceholder')} />
           <button
@@ -132,6 +157,23 @@
             ✕
           </button>
         </div>
+        {#if showPresets}
+          <div class="preset-row">
+            {#each PRESET_SERVINGS as n}
+              {@const key = `amount_${n}`}
+              <label class="preset">
+                <span>{n} 👤</span>
+                <input
+                  type="text"
+                  bind:value={ing[key]}
+                  class:own={ing[key].trim()}
+                  placeholder={suggestedAmount(ing.amount.trim(), n, numberFormat()) ?? ''}
+                  aria-label={t('recipeForm.amountFor', { n })}
+                />
+              </label>
+            {/each}
+          </div>
+        {/if}
       {/each}
       <button type="button" class="add" onclick={addIngredient}>{t('recipeForm.addIngredient')}</button>
     </div>
@@ -179,6 +221,42 @@
   }
 
   .ingredient-row .amount { width: 100px; flex-shrink: 0; }
+
+  .presets-toggle {
+    display: block;
+    margin: -2px 0 10px;
+    padding: 4px 0;
+    border: none;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  .presets-hint { margin: 0 0 12px; font-size: 0.85rem; }
+
+  /* With 6/8 amounts shown, each ingredient becomes a little group */
+  .ingredient-row.grouped { margin-bottom: 4px; }
+  .preset-row {
+    display: flex;
+    gap: 8px;
+    margin: 0 52px 14px 0;
+  }
+  .preset {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .preset input {
+    padding: 8px 10px;
+    font-size: 0.9rem;
+  }
+  .preset input::placeholder { color: var(--muted); opacity: 0.7; }
+  .preset input.own { border-color: var(--accent); }
 
   .remove {
     flex-shrink: 0;

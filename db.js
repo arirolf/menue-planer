@@ -133,3 +133,13 @@ if (!itemColumns.some((c) => c.name === 'recipe_id')) {
     ALTER TABLE list_items ADD COLUMN recipe_name TEXT;
   `);
 }
+
+// ---------- Hand-typed ingredient amounts for 6 and 8 people ----------
+// NULL = calculate from the 4-person amount (see shared/scale.js)
+const ingredientColumns = db.prepare('PRAGMA table_info(ingredients)').all();
+if (!ingredientColumns.some((c) => c.name === 'amount_6')) {
+  db.exec(`
+    ALTER TABLE ingredients ADD COLUMN amount_6 TEXT;
+    ALTER TABLE ingredients ADD COLUMN amount_8 TEXT;
+  `);
+}
