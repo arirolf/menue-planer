@@ -94,6 +94,25 @@ app.get('/api/auth/me', (req, res) => {
   res.json(req.user);
 });
 
+// Personal settings of the logged-in user. Only the fields sent get changed.
+const LANGUAGES = ['de', 'en'];
+
+app.patch('/api/auth/me', (req, res) => {
+  const { language } = req.body ?? {};
+
+  if (language !== undefined) {
+    if (!LANGUAGES.includes(language)) {
+      return res.status(400).json({ error: 'language must be de or en' });
+    }
+    db.prepare('UPDATE users SET language = ? WHERE id = ?').run(language, req.user.id);
+  }
+
+  const user = db
+    .prepare('SELECT id, username, language, is_admin FROM users WHERE id = ?')
+    .get(req.user.id);
+  res.json({ ...user, is_admin: user.is_admin === 1 });
+});
+
 app.post('/api/auth/logout', (req, res) => {
   deleteSession(req.cookies[SESSION_COOKIE]);
   res.clearCookie(SESSION_COOKIE);

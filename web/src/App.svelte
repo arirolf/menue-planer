@@ -7,10 +7,18 @@
   import Admin from './lib/Admin.svelte';
   import AdminHouseholds from './lib/AdminHouseholds.svelte';
   import AdminCalendars from './lib/AdminCalendars.svelte';
+  import Settings from './lib/Settings.svelte';
 
   let user = $state(null);
   let checking = $state(true);
   let page = $state('roll');
+  // Tab to return to when leaving the settings
+  let lastTab = $state('roll');
+
+  function openSettings() {
+    if (page !== 'settings') lastTab = page;
+    page = 'settings';
+  }
 
   let tabs = $derived([
     { id: 'roll', icon: '🍽️', label: 'Planen' },
@@ -48,12 +56,16 @@
   <Login onlogin={handleLogin} />
 {:else}
   <header class="topbar">
-    <span class="hello">👋 {user.username}</span>
+    <button class="hello" onclick={openSettings} aria-label="Einstellungen">
+      👋 {user.username} <span class="gear">⚙️</span>
+    </button>
     <button class="logout" onclick={logout}>Abmelden</button>
   </header>
 
   <main>
-    {#if page === 'roll'}
+    {#if page === 'settings'}
+      <Settings {user} onsave={(u) => (user = u)} onback={() => (page = lastTab)} />
+    {:else if page === 'roll'}
       <Planner />
     {:else if page === 'recipes'}
       <RecipeList />
@@ -102,9 +114,26 @@
   }
 
   .hello {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border: none;
+    background: none;
     color: var(--muted);
+    font: inherit;
     font-size: 0.9rem;
+    cursor: pointer;
+    padding: 6px 10px;
+    margin-left: -10px;
+    border-radius: 8px;
   }
+
+  .hello:hover {
+    background: var(--tag);
+    color: var(--text);
+  }
+
+  .gear { font-size: 0.8rem; }
 
   .logout {
     border: none;
