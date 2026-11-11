@@ -3,7 +3,7 @@
   import { TIME_LABELS, effortLabel } from './constants.js';
   import { todayISO, formatShort, slotLabel } from './dates.js';
   import { t, numberFormat } from './i18n.svelte.js';
-  import { BASE_SERVINGS, amountFor } from '../../../shared/scale.js';
+  import { BASE_SERVINGS, amountFor, amountStep, stepAmount } from '../../../shared/scale.js';
   import ServingsPicker from './ServingsPicker.svelte';
 
   let { recipeId, calendars = [], lists = [], onclose, onreroll = null } = $props();
@@ -24,10 +24,54 @@
   // Shown on the list items; filled in automatically after planning it in the calendar
   let listDate = $state('');
 
+  // Amounts changed by hand before adding to a list: ingredient index -> { text, step }.
+  // step is kept from where editing started, so ½ goes 1, 1½ instead of jumping by 1.
+  let custom = $state({});
+  let editing = $state(null);
+
+  // New number of people means new calculated amounts, so hand-changed ones start over
+  $effect(() => {
+    servings;
+    custom = {};
+    editing = null;
+  });
+
+  function calculated(ing) {
+    return amountFor(ing, servings, numberFormat()) ?? '';
+  }
+
+  function changed(i) {
+    return custom[i] != null && custom[i].text !== calculated(recipe.ingredients[i]);
+  }
+
+  function toggleEdit(i) {
+    if (editing === i) {
+      editing = null;
+      return;
+    }
+    if (!custom[i]) {
+      const text = calculated(recipe.ingredients[i]);
+      custom[i] = { text, step: amountStep(text) };
+    }
+    editing = i;
+  }
+
+  function stepBy(i, direction) {
+    const c = custom[i];
+    c.text = stepAmount(c.text, direction, c.step, numberFormat());
+  }
+
+  function resetAmount(i) {
+    delete custom[i];
+    editing = null;
+  }
+
   async function load(id) {
     error = '';
     planMessage = '';
     addedMessage = '';
+    custom = {};
+    editing = null;
     try {
       const res = await fetch(`/api/recipes/${id}`);
       if (!res.ok) throw new Error(t('common.loadRecipeFailed'));
@@ -68,7 +112,11 @@
       const res = await fetch(`/api/lists/${targetListId}/from-recipe/${recipe.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ servings, planned_date: listDate || null }),
+        body: JSON.stringify({
+          servings,
+          planned_date: listDate || null,
+          amounts: recipe.ingredients.map((_, i) => (changed(i) ? custom[i].text : null)),
+        }),
       });
       if (!res.ok) throw new Error();
       const data = await res.json();
@@ -100,10 +148,46 @@
       <ServingsPicker bind:servings />
       <span class="label">{t('servings.ingredientsFor', { n: servings })}</span>
       <ul>
-        {#each recipe.ingredients as ing}
+        {#each recipe.ingredients as ing, i}
           <li>
-            <span class="amount">{amountFor(ing, servings, numberFormat()) ?? ''}</span>
-            <span>{ing.name}</span>
+            <div class="ing-row">
+              <span class="amount" class:changed={changed(i)}>{custom[i]?.text ?? calculated(ing)}</span>
+              <span class="ing-name">{ing.name}</span>
+              {#if lists.length > 0}
+                <button
+                  class="edit-btn"
+                  class:active={editing === i}
+                  aria-label={t('sheet.editAmount')}
+                  title={t('sheet.editAmount')}
+                  onclick={() => toggleEdit(i)}>±</button
+                >
+              {/if}
+            </div>
+            {#if editing === i && custom[i]}
+              <div class="stepper">
+                <button
+                  class="step-btn"
+                  disabled={!custom[i].step}
+                  aria-label={t('sheet.less')}
+                  onclick={() => stepBy(i, -1)}>−</button
+                >
+                <input
+                  type="text"
+                  bind:value={custom[i].text}
+                  oninput={() => (custom[i].step = amountStep(custom[i].text))}
+                  aria-label={t('sheet.editAmount')}
+                />
+                <button
+                  class="step-btn"
+                  disabled={!custom[i].step}
+                  aria-label={t('sheet.more')}
+                  onclick={() => stepBy(i, 1)}>+</button
+                >
+                {#if changed(i)}
+                  <button class="step-btn" aria-label={t('sheet.resetAmount')} title={t('sheet.resetAmount')} onclick={() => resetAmount(i)}>↺</button>
+                {/if}
+              </div>
+            {/if}
           </li>
         {/each}
       </ul>
@@ -191,17 +275,63 @@
   }
 
   li {
-    display: flex;
-    gap: 12px;
     padding: 8px 0;
     border-bottom: 1px solid var(--tag);
   }
 
   li:last-child { border-bottom: none; }
 
+  .ing-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .ing-name { flex: 1; }
+
   .amount {
     min-width: 64px;
     color: var(--muted);
+  }
+  .amount.changed {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .edit-btn,
+  .step-btn {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 2px solid var(--tag);
+    border-radius: 999px;
+    background: none;
+    color: var(--text);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .edit-btn:hover,
+  .step-btn:hover:not(:disabled) { border-color: var(--accent); }
+  .edit-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
+  }
+  .step-btn { width: 40px; height: 40px; font-size: 1.1rem; }
+  .step-btn:disabled { opacity: 0.4; cursor: default; }
+
+  .stepper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .stepper input {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
   }
 
   .action {

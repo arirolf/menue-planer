@@ -193,6 +193,10 @@ export default {
   'sheet.toList': { de: '🛒 Zutaten auf Liste', en: '🛒 Ingredients to list' },
   'sheet.listDate': { de: '📅 Für wann? (optional)', en: '📅 For when? (optional)' },
   'sheet.addToList': { de: '🛒 Hinzufügen', en: '🛒 Add' },
+  'sheet.editAmount': { de: 'Menge ändern', en: 'Change amount' },
+  'sheet.less': { de: 'Weniger', en: 'Less' },
+  'sheet.more': { de: 'Mehr', en: 'More' },
+  'sheet.resetAmount': { de: 'Menge zurücksetzen', en: 'Reset amount' },
   'sheet.reroll': { de: '🎲 Nochmal', en: '🎲 Again' },
 
   // ---------- Calendar ----------

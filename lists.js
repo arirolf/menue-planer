@@ -207,8 +207,9 @@ router.delete('/:id/checked', loadList, (req, res) => {
 });
 
 // Copy a recipe's ingredients onto this list, tagged with the recipe.
-// Optional body { servings: 6, planned_date: "2026-11-14" }: servings scales the
-// amounts (recipes are written for 4), both get shown on the items.
+// Optional body { servings: 6, planned_date: "2026-11-14", amounts: [null, "1½"] }:
+// servings scales the amounts (recipes are written for 4), both get shown on the items;
+// amounts replaces single ones the user changed by hand.
 router.post('/:id/from-recipe/:recipeId', loadList, (req, res) => {
   const servings = req.body?.servings ?? BASE_SERVINGS;
   if (!isValidServings(servings)) {
@@ -219,6 +220,16 @@ router.post('/:id/from-recipe/:recipeId', loadList, (req, res) => {
     return res.status(400).json({ error: 'planned_date must be YYYY-MM-DD or null' });
   }
 
+  // Optional amounts changed by hand before adding, one per ingredient in recipe order;
+  // null keeps the calculated amount, an empty string adds the item without an amount
+  const amounts = req.body?.amounts ?? null;
+  if (
+    amounts !== null &&
+    (!Array.isArray(amounts) || !amounts.every((a) => a === null || (typeof a === 'string' && a.length <= 100)))
+  ) {
+    return res.status(400).json({ error: 'amounts must be a list of texts (max 100 characters) or null' });
+  }
+
   const recipe = db
     .prepare('SELECT id, name FROM recipes WHERE id = ?')
     .get(Number(req.params.recipeId));
@@ -227,6 +238,9 @@ router.post('/:id/from-recipe/:recipeId', loadList, (req, res) => {
   const ingredients = db
     .prepare('SELECT name, amount, amount_6, amount_8 FROM ingredients WHERE recipe_id = ? ORDER BY id')
     .all(recipe.id);
+  if (amounts && amounts.length !== ingredients.length) {
+    return res.status(409).json({ error: 'The recipe was changed, please reload it' });
+  }
   const decimal = req.user.language === 'en' ? '.' : ',';
 
   const insert = db.prepare(`
@@ -235,18 +249,19 @@ router.post('/:id/from-recipe/:recipeId', loadList, (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
   transaction(() => {
-    for (const ing of ingredients) {
+    ingredients.forEach((ing, i) => {
+      const own = amounts?.[i];
       insert.run(
         req.list.id,
         ing.name,
-        amountFor(ing, servings, { decimal }),
+        own != null ? own.trim() || null : amountFor(ing, servings, { decimal }),
         req.user.id,
         recipe.id,
         recipe.name,
         plannedDate,
         servings
       );
-    }
+    });
   });
   res.status(201).json({ added: ingredients.length });
 });

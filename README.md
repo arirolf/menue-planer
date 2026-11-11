@@ -16,7 +16,8 @@ gemeinsamer Kalender und Einkaufslisten. Oberfläche auf Deutsch und Englisch.*
 - **Calendar** per household for lunch and dinner, shopping trips and notes, with a
   printable PDF for one week, two weeks or a month.
 - **Shopping lists**: one shared list per household, plus personal lists you can share.
-  Add a recipe's or a whole week's ingredients with one tap.
+  Add a recipe's or a whole week's ingredients with one tap, and adjust single
+  amounts with +/− before adding them.
 - **Installable** on phones as an app (PWA), with your own colors.
 - **Simple accounts**: no sign-up. An admin creates users and households.
 
@@ -110,3 +111,9 @@ npm run dev                     # app on http://localhost:4101, proxies /api to 
 
 `npm run build` in `web/` creates `web/dist`, which `server.js` serves directly.
 See [`CLAUDE.md`](CLAUDE.md) for how the code is organized.
+
+## Status and AI notice
+
+🚧 **Work in progress.** This app is far from finished: features are still missing, things may change or break, and the database layout can still change between versions.
+
+🤖 **Built with AI.** This app was created with the help of AI (Claude by Anthropic).
