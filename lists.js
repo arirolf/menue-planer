@@ -2,6 +2,7 @@ import express from 'express';
 import { db, transaction } from './db.js';
 import { BASE_SERVINGS, amountFor, isValidServings } from './shared/scale.js';
 import { isValidDate } from './calendars.js';
+import { nameKey, tagMap } from './shop.js';
 
 const router = express.Router();
 
@@ -16,7 +17,7 @@ export function validUserIds(ids) {
 }
 
 const LIST_SELECT = `
-  SELECT l.id, l.name, l.owner_id, l.household_id,
+  SELECT l.id, l.name, l.owner_id, l.household_id, l.store_id,
          u.username AS owner_name,
          (SELECT COUNT(*) FROM list_items i WHERE i.list_id = l.id AND i.checked = 0) AS open_count
   FROM shopping_lists l
@@ -78,13 +79,20 @@ router.post('/', (req, res) => {
 router.get('/:id', loadList, (req, res) => {
   const list = req.list;
 
+  // category_id comes from the remembered category for that item name
+  const tags = tagMap();
   list.items = db
     .prepare(`
-      SELECT id, name, amount, checked, recipe_name, planned_date, servings
+      SELECT id, name, amount, checked, pinned, recipe_name, planned_date, servings
       FROM list_items WHERE list_id = ? ORDER BY checked, id
     `)
     .all(list.id)
-    .map((item) => ({ ...item, checked: item.checked === 1 }));
+    .map((item) => ({
+      ...item,
+      checked: item.checked === 1,
+      pinned: item.pinned === 1,
+      category_id: tags.get(nameKey(item.name)) ?? null,
+    }));
 
   list.members = list.household_id
     ? db
@@ -111,6 +119,16 @@ router.patch('/:id', loadList, requireOwner, (req, res) => {
   if (!name) return res.status(400).json({ error: 'Name is required' });
 
   db.prepare('UPDATE shopping_lists SET name = ? WHERE id = ?').run(name, req.list.id);
+  res.json({ ok: true });
+});
+
+// Which store's order to sort by; anyone with access may switch it. null = default order.
+router.put('/:id/store', loadList, (req, res) => {
+  const storeId = req.body?.store_id ?? null;
+  if (storeId !== null && (!Number.isInteger(storeId) || !db.prepare('SELECT id FROM stores WHERE id = ?').get(storeId))) {
+    return res.status(400).json({ error: 'store_id must be an existing store or null' });
+  }
+  db.prepare('UPDATE shopping_lists SET store_id = ? WHERE id = ?').run(storeId, req.list.id);
   res.json({ ok: true });
 });
 
@@ -180,14 +198,25 @@ router.post('/:id/items', loadList, (req, res) => {
   res.status(201).json({ id: Number(r.lastInsertRowid) });
 });
 
+// Body { checked } and/or { pinned }, both true or false
 router.patch('/:id/items/:itemId', loadList, (req, res) => {
-  const { checked } = req.body ?? {};
-  if (typeof checked !== 'boolean') {
-    return res.status(400).json({ error: 'checked must be true or false' });
+  const { checked, pinned } = req.body ?? {};
+  if ((checked === undefined && pinned === undefined)
+      || (checked !== undefined && typeof checked !== 'boolean')
+      || (pinned !== undefined && typeof pinned !== 'boolean')) {
+    return res.status(400).json({ error: 'checked and pinned must be true or false' });
   }
   const r = db
-    .prepare('UPDATE list_items SET checked = ? WHERE id = ? AND list_id = ?')
-    .run(checked ? 1 : 0, Number(req.params.itemId), req.list.id);
+    .prepare(`
+      UPDATE list_items SET checked = COALESCE(?, checked), pinned = COALESCE(?, pinned)
+      WHERE id = ? AND list_id = ?
+    `)
+    .run(
+      checked === undefined ? null : Number(checked),
+      pinned === undefined ? null : Number(pinned),
+      Number(req.params.itemId),
+      req.list.id
+    );
   if (r.changes === 0) return res.status(404).json({ error: 'Item not found' });
   res.json({ ok: true });
 });
@@ -230,6 +259,12 @@ router.post('/:id/from-recipe/:recipeId', loadList, (req, res) => {
     return res.status(400).json({ error: 'amounts must be a list of texts (max 100 characters) or null' });
   }
 
+  // Optional indexes (recipe order) of ingredients already at home, which are left out
+  const skip = req.body?.skip ?? [];
+  if (!Array.isArray(skip) || !skip.every((i) => Number.isInteger(i) && i >= 0)) {
+    return res.status(400).json({ error: 'skip must be a list of ingredient indexes' });
+  }
+
   const recipe = db
     .prepare('SELECT id, name FROM recipes WHERE id = ?')
     .get(Number(req.params.recipeId));
@@ -238,7 +273,7 @@ router.post('/:id/from-recipe/:recipeId', loadList, (req, res) => {
   const ingredients = db
     .prepare('SELECT name, amount, amount_6, amount_8 FROM ingredients WHERE recipe_id = ? ORDER BY id')
     .all(recipe.id);
-  if (amounts && amounts.length !== ingredients.length) {
+  if ((amounts && amounts.length !== ingredients.length) || skip.some((i) => i >= ingredients.length)) {
     return res.status(409).json({ error: 'The recipe was changed, please reload it' });
   }
   const decimal = req.user.language === 'en' ? '.' : ',';
@@ -248,8 +283,11 @@ router.post('/:id/from-recipe/:recipeId', loadList, (req, res) => {
       (list_id, name, amount, added_by, recipe_id, recipe_name, planned_date, servings)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
+  let added = 0;
   transaction(() => {
     ingredients.forEach((ing, i) => {
+      if (skip.includes(i)) return;
+      added++;
       const own = amounts?.[i];
       insert.run(
         req.list.id,
@@ -263,7 +301,7 @@ router.post('/:id/from-recipe/:recipeId', loadList, (req, res) => {
       );
     });
   });
-  res.status(201).json({ added: ingredients.length });
+  res.status(201).json({ added });
 });
 
 export default router;

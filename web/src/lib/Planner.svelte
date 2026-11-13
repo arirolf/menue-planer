@@ -3,6 +3,7 @@
   import RecipeSheet from './RecipeSheet.svelte';
   import { TIME_LABELS, SPECIAL, effortLabel } from './constants.js';
   import { t } from './i18n.svelte.js';
+  import { features } from './features.svelte.js';
 
   const EATERS_KEY = 'menu.eaters';
 
@@ -15,8 +16,10 @@
     { value: 5, label: '≤ 60 min' },
   ]);
 
+  // ANY shows every recipe, Sonntagsessen included
+  const ANY = 0;
   let difficultyFilters = $derived([
-    { value: 3, label: t('planner.any') },
+    { value: ANY, label: t('planner.any') },
     { value: 1, label: '🔪' },
     { value: 2, label: '🔪🔪' },
     { value: SPECIAL, label: t('effort.special') },
@@ -31,7 +34,7 @@
 
   let search = $state('');
   let maxTime = $state(6);
-  let maxDifficulty = $state(3);
+  let maxDifficulty = $state(ANY);
   let eaters = $state([]);
   let showFilters = $state(false);
 
@@ -45,11 +48,13 @@
     return recipes.filter(
       (r) =>
         r.time_range <= maxTime &&
-        // "Egal" (3) leaves out Sonntagsessen, the 🎉 chip shows only those
-        (maxDifficulty === SPECIAL ? r.difficulty === SPECIAL : r.difficulty <= maxDifficulty) &&
+        // 🔪 / 🔪🔪 = at most that much, the 🎉 chip shows only Sonntagsessen
+        (maxDifficulty === ANY ||
+          (maxDifficulty === SPECIAL ? r.difficulty === SPECIAL : r.difficulty <= maxDifficulty)) &&
         !r.disliked_by_ids.some((id) => eaters.includes(id)) &&
         (!q ||
           r.name.toLowerCase().includes(q) ||
+          r.notes?.toLowerCase().includes(q) ||
           r.ingredients.some((name) => name.toLowerCase().includes(q)))
     );
   });
@@ -60,7 +65,7 @@
     if (eaters.length > 0) parts.push(`👥 ${eaters.length}`);
     if (maxTime < 6) parts.push(timeFilters.find((f) => f.value === maxTime).label);
     if (maxDifficulty === SPECIAL) parts.push('🎉');
-    else if (maxDifficulty < 3) parts.push(`max ${'🔪'.repeat(maxDifficulty)}`);
+    else if (maxDifficulty !== ANY) parts.push(`max ${'🔪'.repeat(maxDifficulty)}`);
     return parts.join(' · ');
   });
 
@@ -226,6 +231,7 @@
             <span class="text">
               <span class="name">{r.name}</span>
               <span class="meta">⏱️ {TIME_LABELS[r.time_range]} · {effortLabel(r.difficulty)}</span>
+              {#if features.recipeChecks && !r.checked}<span class="unchecked">{t('recipe.unchecked')}</span>{/if}
             </span>
             <span class="chevron">›</span>
           </button>
@@ -242,6 +248,10 @@
     {lists}
     onclose={close}
     onreroll={rolled ? surprise : null}
+    onchecked={(id, checked) => {
+      const r = recipes.find((x) => x.id === id);
+      if (r) r.checked = checked;
+    }}
   />
 {/if}
 
@@ -378,6 +388,14 @@
   .meta {
     font-size: 0.85rem;
     color: var(--muted);
+  }
+
+  .unchecked {
+    align-self: flex-start;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--error) 15%, transparent);
+    font-size: 0.8rem;
   }
 
   .chevron {

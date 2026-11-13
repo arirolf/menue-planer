@@ -2,6 +2,8 @@
   import { TIME_LABELS, DIFFICULTIES, effortLabel } from './constants.js';
   import { t, numberFormat } from './i18n.svelte.js';
   import { BASE_SERVINGS, PRESET_SERVINGS, suggestedAmount } from '../../../shared/scale.js';
+  import { categoryName } from './categories.js';
+  import { features } from './features.svelte.js';
 
   // Props: what the parent component passes in
   let { recipe = null, onsaved = () => {}, oncancel = null } = $props();
@@ -11,9 +13,12 @@
   let name = $state(recipe?.name ?? '');
   let timeRange = $state(recipe?.time_range ?? 3);
   let difficulty = $state(recipe?.difficulty ?? 1);
+  let notes = $state(recipe?.notes ?? '');
+  let checked = $state(recipe?.checked ?? false);
   // amount = for 4 people. amount_6 / amount_8 are only filled when typed by hand,
   // otherwise they're calculated (shown greyed out as a suggestion).
-  const emptyIngredient = () => ({ amount: '', name: '', amount_6: '', amount_8: '' });
+  // category_id: undefined = use what's remembered for that name, a number or null = picked here.
+  const emptyIngredient = () => ({ amount: '', name: '', amount_6: '', amount_8: '', category_id: undefined });
 
   let ingredients = $state(
     recipe?.ingredients?.length
@@ -22,6 +27,7 @@
           name: ing.name,
           amount_6: ing.amount_6 ?? '',
           amount_8: ing.amount_8 ?? '',
+          category_id: undefined,
         }))
       : [emptyIngredient()]
   );
@@ -30,6 +36,29 @@
   let showPresets = $state(
     ingredients.some((ing) => PRESET_SERVINGS.some((n) => ing[`amount_${n}`]))
   );
+
+  // Categories (shared with shopping lists) and the remembered category per item name
+  let shop = $state({ categories: [], tags: {} });
+  let byId = $derived(new Map(shop.categories.map((c) => [c.id, c])));
+  // Ingredient whose category picker is open
+  let tagging = $state(null);
+
+  fetch('/api/shop')
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data) => {
+      if (data) shop = data;
+    })
+    .catch(() => {});
+
+  function categoryOf(ing) {
+    if (ing.category_id !== undefined) return byId.get(ing.category_id) ?? null;
+    return byId.get(shop.tags[ing.name.trim().toLocaleLowerCase('de')]) ?? null;
+  }
+
+  function pickCategory(ing, id) {
+    ing.category_id = id;
+    tagging = null;
+  }
 
   let saving = $state(false);
   let message = $state('');
@@ -41,6 +70,7 @@
 
   function removeIngredient(index) {
     ingredients.splice(index, 1);
+    tagging = null;
   }
 
   async function save(event) {
@@ -60,6 +90,8 @@
         amount: ing.amount.trim() || null,
         amount_6: ing.amount_6.trim() || null,
         amount_8: ing.amount_8.trim() || null,
+        // Only send it when picked here, so saving doesn't overwrite tags set elsewhere
+        ...(ing.category_id !== undefined && { category_id: ing.category_id }),
       }));
 
     saving = true;
@@ -71,6 +103,9 @@
           name: name.trim(),
           time_range: timeRange,
           difficulty,
+          notes: notes.trim() || null,
+          // Left out when the feature is off, so the stored value isn't touched
+          ...(features.recipeChecks && { checked }),
           ingredients: cleaned,
         }),
       });
@@ -85,7 +120,13 @@
       name = '';
       timeRange = 3;
       difficulty = 1;
+      notes = '';
+      checked = false;
       ingredients = [emptyIngredient()];
+      tagging = null;
+      // Fresh tags, so the next recipe already knows the new ones
+      const res2 = await fetch('/api/shop');
+      if (res2.ok) shop = await res2.json();
     } catch (e) {
       error = e.message;
     } finally {
@@ -147,6 +188,20 @@
         <div class="ingredient-row" class:grouped={showPresets}>
           <input type="text" class="amount" bind:value={ing.amount} placeholder={t('recipeForm.amountPlaceholder')} />
           <input type="text" bind:value={ing.name} placeholder={t('recipeForm.ingredientPlaceholder')} />
+          {#if shop.categories.length > 0}
+            {@const cat = categoryOf(ing)}
+            <button
+              type="button"
+              class="cat"
+              class:faint={!cat}
+              class:active={tagging === i}
+              onclick={() => (tagging = tagging === i ? null : i)}
+              aria-label={t('list.setCategory')}
+              title={cat ? categoryName(cat) : t('list.setCategory')}
+            >
+              {cat?.emoji ?? '🏷️'}
+            </button>
+          {/if}
           <button
             type="button"
             class="remove"
@@ -157,6 +212,25 @@
             ✕
           </button>
         </div>
+        {#if tagging === i}
+          <div class="picker">
+            {#each shop.categories as c (c.id)}
+              <button
+                type="button"
+                class="chip small-chip"
+                class:active={categoryOf(ing)?.id === c.id}
+                onclick={() => pickCategory(ing, c.id)}
+              >
+                {c.emoji ?? ''} {categoryName(c)}
+              </button>
+            {/each}
+            {#if categoryOf(ing)}
+              <button type="button" class="chip small-chip" onclick={() => pickCategory(ing, null)}>
+                ✕ {t('list.noCategory')}
+              </button>
+            {/if}
+          </div>
+        {/if}
         {#if showPresets}
           <div class="preset-row">
             {#each PRESET_SERVINGS as n}
@@ -177,6 +251,18 @@
       {/each}
       <button type="button" class="add" onclick={addIngredient}>{t('recipeForm.addIngredient')}</button>
     </div>
+
+    <div class="field">
+      <label class="label" for="notes">{t('recipeForm.notes')}</label>
+      <textarea id="notes" bind:value={notes} maxlength="2000" placeholder={t('recipeForm.notesPlaceholder')}></textarea>
+    </div>
+
+    {#if features.recipeChecks}
+      <label class="field check">
+        <input type="checkbox" bind:checked />
+        <span>{t('recipeForm.checked')}</span>
+      </label>
+    {/if}
 
     <div class="actions">
       {#if oncancel}
@@ -258,6 +344,18 @@
   .preset input::placeholder { color: var(--muted); opacity: 0.7; }
   .preset input.own { border-color: var(--accent); }
 
+  .check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+  }
+  .check input {
+    width: 22px;
+    height: 22px;
+    accent-color: var(--accent);
+  }
+
   .remove {
     flex-shrink: 0;
     width: 44px;
@@ -269,6 +367,27 @@
     cursor: pointer;
   }
   .remove:disabled { opacity: 0.3; cursor: default; }
+
+  .cat {
+    flex-shrink: 0;
+    width: 44px;
+    border: 2px solid var(--tag);
+    border-radius: 12px;
+    background: none;
+    font-size: 1.1rem;
+    cursor: pointer;
+  }
+  .cat.faint { opacity: 0.45; }
+  .cat:hover,
+  .cat.active { border-color: var(--accent); opacity: 1; }
+
+  .picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0 0 12px;
+  }
+  .small-chip { font-size: 0.85rem; }
 
   .add {
     border: 2px dashed var(--tag);

@@ -9,15 +9,21 @@ gemeinsamer Kalender und Einkaufslisten. Oberfläche auf Deutsch und Englisch.*
 
 ## Features
 
-- **Recipes** with ingredients, cooking time and effort. Amounts scale automatically
-  for 4, 6, 8 or any number of people, and you can type exact amounts by hand.
+- **Recipes** with ingredients, cooking time, effort and notes (e.g. the cookbook page).
+  Amounts scale automatically for 4, 6, 8 or any number of people, and you can type
+  exact amounts by hand.
 - **Random picks** filtered by time and effort, and by who is eating (everyone can mark
   dishes they don't like).
 - **Calendar** per household for lunch and dinner, shopping trips and notes, with a
   printable PDF for one week, two weeks or a month.
 - **Shopping lists**: one shared list per household, plus personal lists you can share.
-  Add a recipe's or a whole week's ingredients with one tap, and adjust single
-  amounts with +/− before adding them.
+  Add a recipe's or a whole week's ingredients with one tap, adjust single
+  amounts with +/− before adding them, and tap 🏠 on what you already have at home.
+- **Sorted like your store**: tag items with a category (vegetables, fruit, meat,
+  cheese & dairy, bread, drinks, or your own) and the list groups them in the order you walk through
+  the store. Save a different order per store, filter by category, and pin items to
+  the top. Each item name remembers its category, and you can set it right in the
+  recipe, so ingredients arrive on the list already sorted.
 - **Installable** on phones as an app (PWA), with your own colors.
 - **Simple accounts**: no sign-up. An admin creates users and households.
 
@@ -71,6 +77,7 @@ Set these under `environment:` in `docker-compose.yml`:
 | `ADMIN_USERNAME` | `admin` | Name of the admin created on the very first start |
 | `ADMIN_PASSWORD` | random | Password for that admin (otherwise one is generated and printed in the logs) |
 | `PORT` | `4100` | Port inside the container |
+| `RECIPE_CHECKS` | off | `1` flags recipes nobody has checked yet ⚠️ (set it in a `.env` file next to `docker-compose.yml`) |
 | `TRUST_PROXY` | private networks | Which reverse proxies to trust, in [Express format](https://expressjs.com/en/guide/behind-proxies.html) |
 
 `ADMIN_USERNAME` and `ADMIN_PASSWORD` are only used while the database has no users yet.

@@ -10,6 +10,7 @@
   import Settings from './lib/Settings.svelte';
   import { t, setLanguage } from './lib/i18n.svelte.js';
   import { applyColors } from './lib/theme.js';
+  import { features } from './lib/features.svelte.js';
 
   let user = $state(null);
   let checking = $state(true);
@@ -42,6 +43,7 @@
   // Every time we get the user from the server, follow their language and colors
   function setUser(u) {
     user = u;
+    features.recipeChecks = u.recipe_checks === true;
     setLanguage(u.language);
     applyColors(u);
   }

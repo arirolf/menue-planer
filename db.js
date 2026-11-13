@@ -222,3 +222,58 @@ if (recipesSql.includes('difficulty BETWEEN 1 AND 3')) {
     db.exec('PRAGMA foreign_keys = ON');
   }
 }
+
+// ---------- Item categories, per-store order and pinned items ----------
+// Categories are global like recipes. Default ones have a key (translated in the app)
+// and name NULL until someone renames them. position = default order.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS item_categories (
+    id        INTEGER PRIMARY KEY,
+    key       TEXT UNIQUE,
+    name      TEXT,
+    emoji     TEXT,
+    position  INTEGER NOT NULL DEFAULT 0
+  );
+
+  -- Remembered category per item name, so "Tomaten" is sorted the same on every list.
+  -- name_key is the trimmed, lowercased item name.
+  CREATE TABLE IF NOT EXISTS item_tags (
+    name_key     TEXT PRIMARY KEY,
+    category_id  INTEGER NOT NULL REFERENCES item_categories(id) ON DELETE CASCADE
+  );
+
+  -- Stores with their own aisle order. Categories without a row go after the others.
+  CREATE TABLE IF NOT EXISTS stores (
+    id    INTEGER PRIMARY KEY,
+    name  TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS store_category_order (
+    store_id     INTEGER NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+    category_id  INTEGER NOT NULL REFERENCES item_categories(id) ON DELETE CASCADE,
+    position     INTEGER NOT NULL,
+    PRIMARY KEY (store_id, category_id)
+  );
+`);
+// Defaults only once: a later empty table means the user deleted them on purpose
+if (db.prepare("SELECT COUNT(*) AS n FROM item_categories").get().n === 0
+    && !db.prepare("PRAGMA table_info(list_items)").all().some((c) => c.name === 'pinned')) {
+  const insert = db.prepare('INSERT INTO item_categories (key, emoji, position) VALUES (?, ?, ?)');
+  [['vegetables', '🥦'], ['fruit', '🍎'], ['meat', '🥩'], ['dairy', '🧀'], ['grains', '🌾'], ['sauces', '🫙'], ['drinks', '🥤']]
+    .forEach(([key, emoji], i) => insert.run(key, emoji, i));
+}
+if (!db.prepare('PRAGMA table_info(list_items)').all().some((c) => c.name === 'pinned')) {
+  db.exec(`
+    ALTER TABLE list_items ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0 CHECK (pinned IN (0, 1));
+    ALTER TABLE shopping_lists ADD COLUMN store_id INTEGER REFERENCES stores(id) ON DELETE SET NULL;
+  `);
+}
+
+// ---------- Recipe notes and "checked" flag ----------
+// notes: free text, e.g. which page of the cookbook. checked: someone went through the
+// recipe and confirmed it's typed in right. Existing recipes start unchecked.
+if (!db.prepare('PRAGMA table_info(recipes)').all().some((c) => c.name === 'notes')) {
+  db.exec(`
+    ALTER TABLE recipes ADD COLUMN notes TEXT;
+    ALTER TABLE recipes ADD COLUMN checked INTEGER NOT NULL DEFAULT 0 CHECK (checked IN (0, 1));
+  `);
+}

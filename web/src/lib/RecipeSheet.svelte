@@ -5,8 +5,9 @@
   import { t, numberFormat } from './i18n.svelte.js';
   import { BASE_SERVINGS, amountFor, amountStep, stepAmount } from '../../../shared/scale.js';
   import ServingsPicker from './ServingsPicker.svelte';
+  import { features } from './features.svelte.js';
 
-  let { recipeId, calendars = [], lists = [], onclose, onreroll = null } = $props();
+  let { recipeId, calendars = [], lists = [], onclose, onreroll = null, onchecked = null } = $props();
 
   let recipe = $state(null);
   let error = $state('');
@@ -28,6 +29,10 @@
   // step is kept from where editing started, so ½ goes 1, 1½ instead of jumping by 1.
   let custom = $state({});
   let editing = $state(null);
+  // Ingredient indexes we already have at home: crossed out and left off the list.
+  // Kept when the number of people changes, cleared for another recipe.
+  let atHome = $state([]);
+  let checkError = $state('');
 
   // New number of people means new calculated amounts, so hand-changed ones start over
   $effect(() => {
@@ -61,6 +66,28 @@
     c.text = stepAmount(c.text, direction, c.step, numberFormat());
   }
 
+  function toggleHome(i) {
+    atHome = atHome.includes(i) ? atHome.filter((x) => x !== i) : [...atHome, i];
+    if (editing === i) editing = null;
+  }
+
+  async function toggleChecked() {
+    checkError = '';
+    const checked = !recipe.checked;
+    try {
+      const res = await fetch(`/api/recipes/${recipe.id}/checked`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ checked }),
+      });
+      if (!res.ok) throw new Error();
+      recipe.checked = checked;
+      onchecked?.(recipe.id, checked);
+    } catch {
+      checkError = t('common.notSaved');
+    }
+  }
+
   function resetAmount(i) {
     delete custom[i];
     editing = null;
@@ -72,6 +99,8 @@
     addedMessage = '';
     custom = {};
     editing = null;
+    atHome = [];
+    checkError = '';
     try {
       const res = await fetch(`/api/recipes/${id}`);
       if (!res.ok) throw new Error(t('common.loadRecipeFailed'));
@@ -116,6 +145,7 @@
           servings,
           planned_date: listDate || null,
           amounts: recipe.ingredients.map((_, i) => (changed(i) ? custom[i].text : null)),
+          skip: atHome,
         }),
       });
       if (!res.ok) throw new Error();
@@ -144,16 +174,42 @@
       <span class="tag">{effortLabel(recipe.difficulty)}</span>
     </div>
 
+    {#if features.recipeChecks}
+    <div class="check-row">
+      <span class="check-state" class:ok={recipe.checked}>
+        {t(recipe.checked ? 'recipe.checked' : 'recipe.unchecked')}
+      </span>
+      <button class="check-btn" onclick={toggleChecked}>
+        {t(recipe.checked ? 'recipe.markUnchecked' : 'recipe.markChecked')}
+      </button>
+    </div>
+    {#if checkError}<p class="error">{checkError}</p>{/if}
+    {/if}
+
+    {#if recipe.notes}
+      <p class="notes">📖 {recipe.notes}</p>
+    {/if}
+
     {#if recipe.ingredients.length > 0}
       <ServingsPicker bind:servings />
       <span class="label">{t('servings.ingredientsFor', { n: servings })}</span>
+      <p class="hint">{t('sheet.atHomeHint')}</p>
       <ul>
         {#each recipe.ingredients as ing, i}
+          {@const home = atHome.includes(i)}
           <li>
-            <div class="ing-row">
+            <div class="ing-row" class:home>
               <span class="amount" class:changed={changed(i)}>{custom[i]?.text ?? calculated(ing)}</span>
               <span class="ing-name">{ing.name}</span>
-              {#if lists.length > 0}
+              <button
+                class="edit-btn home-btn"
+                class:active={home}
+                aria-label={t('sheet.atHome')}
+                aria-pressed={home}
+                title={t('sheet.atHome')}
+                onclick={() => toggleHome(i)}>🏠</button
+              >
+              {#if lists.length > 0 && !home}
                 <button
                   class="edit-btn"
                   class:active={editing === i}
@@ -229,7 +285,9 @@
           <span>{t('sheet.listDate')}</span>
           <input type="date" bind:value={listDate} />
         </label>
-        <button class="action-btn" onclick={addToList}>{t('sheet.addToList')}</button>
+        <button class="action-btn" onclick={addToList} disabled={atHome.length >= recipe.ingredients.length}>
+          {t('sheet.addToList')}
+        </button>
         {#if addedMessage}<p class="message ok">{addedMessage}</p>{/if}
       </div>
     {/if}
@@ -288,6 +346,54 @@
   }
 
   .ing-name { flex: 1; }
+
+  .ing-row.home .amount,
+  .ing-row.home .ing-name {
+    text-decoration: line-through;
+    opacity: 0.45;
+  }
+  .home-btn { font-size: 0.9rem; filter: grayscale(1); opacity: 0.5; }
+  .home-btn.active { filter: none; opacity: 1; }
+
+  .hint {
+    margin: 0 0 4px;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  .check-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: -8px 0 16px;
+  }
+  .check-state {
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--error) 15%, transparent);
+    font-size: 0.85rem;
+  }
+  .check-state.ok {
+    background: color-mix(in srgb, var(--success) 15%, transparent);
+  }
+  .check-btn {
+    padding: 4px 0;
+    border: none;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+
+  .notes {
+    margin: 0 0 16px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: var(--tag);
+    white-space: pre-line;
+  }
 
   .amount {
     min-width: 64px;
@@ -377,7 +483,9 @@
     transition: background 0.15s, color 0.15s;
   }
 
-  .action-btn:hover {
+  .action-btn:disabled { opacity: 0.4; cursor: default; }
+
+  .action-btn:hover:not(:disabled) {
     background: var(--accent);
     color: var(--on-accent);
   }

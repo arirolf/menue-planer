@@ -5,6 +5,7 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import { db, transaction } from './db.js';
 import listsRouter, { validUserIds } from './lists.js';
+import shopRouter, { nameKey, setTag, tagMap } from './shop.js';
 import calendarsRouter, { adminRouter as adminCalendarsRouter } from './calendars.js';
 import { PRESET_SERVINGS } from './shared/scale.js';
 import {
@@ -51,6 +52,9 @@ app.get('/manifest.webmanifest', (req, res, next) => {
 
 app.use(express.static(path.join(__dirname, 'web', 'dist')));
 
+// Optional "not checked yet" flag on recipes, off unless RECIPE_CHECKS=1
+const RECIPE_CHECKS = ['1', 'true'].includes(String(process.env.RECIPE_CHECKS).toLowerCase());
+
 // ---------- Helpers ----------
 
 function validateRecipe(body) {
@@ -60,6 +64,10 @@ function validateRecipe(body) {
   // 4 = "Sonntagsessen": takes all day, for special occasions
   if (!Number.isInteger(difficulty) || difficulty < 1 || difficulty > 4) return 'difficulty must be 1-4';
   if (!Array.isArray(ingredients)) return 'ingredients must be a list';
+  if (body.notes != null && (typeof body.notes !== 'string' || body.notes.length > 2000)) {
+    return 'notes must be text (max 2000 characters)';
+  }
+  if (body.checked !== undefined && typeof body.checked !== 'boolean') return 'checked must be true or false';
   for (const ing of ingredients) {
     if (!ing || typeof ing.name !== 'string' || !ing.name.trim()) {
       return 'Every ingredient needs a name';
@@ -67,14 +75,28 @@ function validateRecipe(body) {
     for (const key of ['amount', ...PRESET_SERVINGS.map((n) => `amount_${n}`)]) {
       if (ing[key] != null && typeof ing[key] !== 'string') return `${key} must be text`;
     }
+    // Optional: undefined keeps the remembered category, null forgets it
+    const cat = ing.category_id;
+    if (cat !== undefined && cat !== null
+        && (!Number.isInteger(cat) || !db.prepare('SELECT id FROM item_categories WHERE id = ?').get(cat))) {
+      return 'category_id must be an existing category or null';
+    }
   }
   return null;
 }
 
+// category_id is the remembered category for the ingredient's name (shared with shopping lists)
 function getIngredients(recipeId) {
+  const tags = tagMap();
   return db
     .prepare('SELECT name, amount, amount_6, amount_8 FROM ingredients WHERE recipe_id = ? ORDER BY id')
-    .all(recipeId);
+    .all(recipeId)
+    .map((ing) => ({ ...ing, category_id: tags.get(nameKey(ing.name)) ?? null }));
+}
+
+// SQLite stores checked as 0/1, the app gets a real boolean
+function publicRecipe(r) {
+  return { ...r, checked: r.checked === 1 };
 }
 
 // Empty text counts as "not set"
@@ -95,6 +117,9 @@ function saveIngredients(recipeId, ingredients) {
       cleanAmount(ing.amount_6),
       cleanAmount(ing.amount_8)
     );
+    // The category isn't stored on the ingredient but remembered per name,
+    // so the item is sorted right when it lands on a shopping list
+    if (ing.category_id !== undefined) setTag(ing.name, ing.category_id);
   }
 }
 
@@ -108,6 +133,7 @@ function publicUser(u) {
     color_main: u.color_main ?? null,
     color_secondary: u.color_secondary ?? null,
     color_frame: u.color_frame ?? null,
+    recipe_checks: RECIPE_CHECKS,
   };
 }
 
@@ -138,7 +164,7 @@ app.post('/api/auth/login', (req, res) => {
 app.use('/api', requireAuth);
 
 app.get('/api/auth/me', (req, res) => {
-  res.json(req.user);
+  res.json({ ...req.user, recipe_checks: RECIPE_CHECKS });
 });
 
 // Personal settings of the logged-in user. Only the fields sent get changed.
@@ -185,6 +211,7 @@ app.get('/api/users', (req, res) => {
 
 // All shopping list routes live in lists.js
 app.use('/api/lists', listsRouter);
+app.use('/api', shopRouter);
 app.use('/api/calendars', calendarsRouter);
 app.use('/api/admin/calendars', adminCalendarsRouter);
 
@@ -211,7 +238,7 @@ app.get('/api/recipes', (req, res) => {
     recipes.map((r) => {
       const forRecipe = dislikes.filter((d) => d.recipe_id === r.id);
       return {
-        ...r,
+        ...publicRecipe(r),
         ingredients: ingredients.filter((i) => i.recipe_id === r.id).map((i) => i.name),
         disliked_by: forRecipe.map((d) => d.username),
         disliked_by_ids: forRecipe.map((d) => d.user_id),
@@ -222,11 +249,11 @@ app.get('/api/recipes', (req, res) => {
 });
 
 // One random recipe, filtered by time, difficulty and who is eating.
-// Default max 3 leaves out Sonntagsessen (4), like the "Egal" filter in the app.
+// Without filters every recipe can come up, Sonntagsessen (4) included.
 // IMPORTANT: must come BEFORE /api/recipes/:id
 app.get('/api/recipes/random', (req, res) => {
   const maxTime = Number(req.query.max_time) || 6;
-  const maxDifficulty = Number(req.query.max_difficulty) || 3;
+  const maxDifficulty = Number(req.query.max_difficulty) || 4;
 
   // "?eaters=1,3" -> [1, 3]
   const eaters = String(req.query.eaters ?? '')
@@ -254,8 +281,7 @@ app.get('/api/recipes/random', (req, res) => {
     .get(maxTime, maxDifficulty, ...eaters);
 
   if (!recipe) return res.status(404).json({ error: 'No matching recipe' });
-  recipe.ingredients = getIngredients(recipe.id);
-  res.json(recipe);
+  res.json({ ...publicRecipe(recipe), ingredients: getIngredients(recipe.id) });
 });
 
 // Flag / unflag "I don't like this" for the logged-in user
@@ -278,27 +304,42 @@ app.put('/api/recipes/:id/dislike', (req, res) => {
   res.json({ ok: true });
 });
 
+// Mark a recipe as checked (gone through, typed in right) or not
+app.put('/api/recipes/:id/checked', (req, res) => {
+  if (!RECIPE_CHECKS) return res.status(404).json({ error: 'Not found' });
+  if (typeof req.body?.checked !== 'boolean') {
+    return res.status(400).json({ error: 'checked must be true or false' });
+  }
+  const result = db
+    .prepare('UPDATE recipes SET checked = ? WHERE id = ?')
+    .run(req.body.checked ? 1 : 0, Number(req.params.id));
+  if (result.changes === 0) return res.status(404).json({ error: 'Recipe not found' });
+  res.json({ ok: true });
+});
+
 app.get('/api/recipes/:id', (req, res) => {
   const recipe = db
     .prepare('SELECT * FROM recipes WHERE id = ?')
     .get(Number(req.params.id));
 
   if (!recipe) return res.status(404).json({ error: 'Recipe not found' });
-  recipe.ingredients = getIngredients(recipe.id);
-  res.json(recipe);
+  res.json({ ...publicRecipe(recipe), ingredients: getIngredients(recipe.id) });
 });
 
 app.post('/api/recipes', (req, res) => {
   const error = validateRecipe(req.body ?? {});
   if (error) return res.status(400).json({ error });
 
-  const { name, time_range, difficulty, ingredients = [] } = req.body;
+  const { name, time_range, difficulty, ingredients = [], notes, checked = false } = req.body;
 
   try {
     const id = transaction(() => {
       const result = db
-        .prepare('INSERT INTO recipes (name, time_range, difficulty, created_by) VALUES (?, ?, ?, ?)')
-        .run(name.trim(), time_range, difficulty, req.user.id);
+        .prepare(`
+          INSERT INTO recipes (name, time_range, difficulty, notes, checked, created_by)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `)
+        .run(name.trim(), time_range, difficulty, notes?.trim() || null, checked ? 1 : 0, req.user.id);
       const recipeId = Number(result.lastInsertRowid);
       saveIngredients(recipeId, ingredients);
       return recipeId;
@@ -317,12 +358,15 @@ app.put('/api/recipes/:id', (req, res) => {
   const exists = db.prepare('SELECT id FROM recipes WHERE id = ?').get(id);
   if (!exists) return res.status(404).json({ error: 'Recipe not found' });
 
-  const { name, time_range, difficulty, ingredients = [] } = req.body;
+  const { name, time_range, difficulty, ingredients = [], notes, checked } = req.body;
 
   try {
     transaction(() => {
       db.prepare('UPDATE recipes SET name = ?, time_range = ?, difficulty = ? WHERE id = ?')
         .run(name.trim(), time_range, difficulty, id);
+      // Both optional: left out = keep what's there
+      if (notes !== undefined) db.prepare('UPDATE recipes SET notes = ? WHERE id = ?').run(notes?.trim() || null, id);
+      if (checked !== undefined) db.prepare('UPDATE recipes SET checked = ? WHERE id = ?').run(checked ? 1 : 0, id);
       db.prepare('DELETE FROM ingredients WHERE recipe_id = ?').run(id);
       saveIngredients(id, ingredients);
     });

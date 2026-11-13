@@ -2,6 +2,7 @@
   import { TIME_LABELS, effortLabel } from './constants.js';
   import RecipeForm from './RecipeForm.svelte';
   import { t } from './i18n.svelte.js';
+  import { features } from './features.svelte.js';
 
   let recipes = $state([]);
   let loading = $state(true);
@@ -9,10 +10,17 @@
   let search = $state('');
   let editing = $state(null);
   let creating = $state(false);
+  let onlyUnchecked = $state(false);
 
-  let filtered = $derived(
-    recipes.filter((r) => r.name.toLowerCase().includes(search.trim().toLowerCase()))
-  );
+  let uncheckedCount = $derived(recipes.filter((r) => !r.checked).length);
+  let filtered = $derived.by(() => {
+    const q = search.trim().toLowerCase();
+    return recipes.filter(
+      (r) =>
+        (!onlyUnchecked || !features.recipeChecks || !r.checked) &&
+        (r.name.toLowerCase().includes(q) || r.notes?.toLowerCase().includes(q))
+    );
+  });
 
   // quiet = refresh in the background without showing "Lade…"
   async function load(quiet = false) {
@@ -88,6 +96,13 @@
 
     <input type="text" bind:value={search} placeholder={t('recipes.search')} class="search" />
     <p class="hint">{t('recipes.dislikeHint')}</p>
+    {#if features.recipeChecks && (uncheckedCount > 0 || onlyUnchecked)}
+      <div class="chips filter">
+        <button class="chip" class:active={onlyUnchecked} onclick={() => (onlyUnchecked = !onlyUnchecked)}>
+          {t('recipes.uncheckedFilter', { n: uncheckedCount })}
+        </button>
+      </div>
+    {/if}
 
     {#if error}<p class="error">{error}</p>{/if}
 
@@ -104,6 +119,8 @@
             <button class="info" onclick={() => edit(r.id)}>
               <span class="name">{r.name}</span>
               <span class="meta">⏱️ {TIME_LABELS[r.time_range]} · {effortLabel(r.difficulty)}</span>
+              {#if r.notes}<span class="meta notes">📖 {r.notes}</span>{/if}
+              {#if features.recipeChecks && !r.checked}<span class="unchecked">{t('recipe.unchecked')}</span>{/if}
               {#if r.disliked_by.length > 0}
                 <span class="dislikes">👎 {r.disliked_by.join(', ')}</span>
               {/if}
@@ -150,6 +167,17 @@
     font-size: 0.85rem;
     color: var(--muted);
     margin: 0 0 16px;
+  }
+
+  .filter { margin-bottom: 16px; }
+
+  .notes { white-space: pre-line; }
+
+  .unchecked {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--error) 15%, transparent);
+    font-size: 0.8rem;
   }
 
   .muted {

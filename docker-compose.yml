@@ -7,6 +7,8 @@ services:
       - PORT=4100
       # Name of the admin created on the very first start (password is printed in the logs)
       # - ADMIN_USERNAME=admin
+      # Optional features, set them in a .env file next to this one (e.g. RECIPE_CHECKS=1)
+      - RECIPE_CHECKS=${RECIPE_CHECKS:-}
     volumes:
       - ./data:/data
     ports:

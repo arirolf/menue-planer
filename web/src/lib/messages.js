@@ -157,6 +157,7 @@ export default {
   'recipes.dislike': { de: 'Mag ich nicht', en: "Don't like it" },
   'recipes.undislike': { de: 'Mag ich doch', en: 'I like it after all' },
   'recipes.count': { de: '{n} von {total} Rezepten', en: '{n} of {total} recipes' },
+  'recipes.uncheckedFilter': { de: '⚠️ {n} nicht geprüft', en: '⚠️ {n} not checked' },
 
   'recipeForm.edit': { de: 'Rezept bearbeiten', en: 'Edit recipe' },
   'recipeForm.new': { de: 'Neues Rezept', en: 'New recipe' },
@@ -173,7 +174,14 @@ export default {
   },
   'recipeForm.amountFor': { de: 'Menge für {n} Personen', en: 'Amount for {n} people' },
   'recipeForm.save': { de: 'Rezept speichern', en: 'Save recipe' },
+  'recipeForm.notes': { de: '📖 Notizen', en: '📖 Notes' },
+  'recipeForm.notesPlaceholder': { de: 'z.B. Kochbuch S. 42', en: 'e.g. cookbook p. 42' },
+  'recipeForm.checked': { de: 'Rezept ist geprüft ✓', en: 'Recipe is checked ✓' },
   'recipeForm.saved': { de: '„{name}" gespeichert! 🎉', en: '"{name}" saved! 🎉' },
+  'recipe.unchecked': { de: '⚠️ Nicht geprüft', en: '⚠️ Not checked' },
+  'recipe.checked': { de: '✓ Geprüft', en: '✓ Checked' },
+  'recipe.markChecked': { de: '✓ Als geprüft markieren', en: '✓ Mark as checked' },
+  'recipe.markUnchecked': { de: 'Doch nicht geprüft', en: 'Mark as not checked' },
   // Index = difficulty level (1-3)
   'recipe.difficulty': {
     de: [
@@ -197,6 +205,11 @@ export default {
   'sheet.less': { de: 'Weniger', en: 'Less' },
   'sheet.more': { de: 'Mehr', en: 'More' },
   'sheet.resetAmount': { de: 'Menge zurücksetzen', en: 'Reset amount' },
+  'sheet.atHome': { de: 'Haben wir schon', en: 'Already at home' },
+  'sheet.atHomeHint': {
+    de: '🏠 = haben wir schon, kommt nicht auf die Liste',
+    en: '🏠 = already at home, stays off the list',
+  },
   'sheet.reroll': { de: '🎲 Nochmal', en: '🎲 Again' },
 
   // ---------- Calendar ----------
@@ -299,6 +312,42 @@ export default {
   'list.peopleCount': { de: '{n} Personen', en: '{n} people' },
   'list.inBasket': { de: 'Im Korb ({n})', en: 'In the basket ({n})' },
   'list.clear': { de: 'Aufräumen', en: 'Clear' },
+  'list.store': { de: 'Laden', en: 'Store' },
+  'list.defaultOrder': { de: '↕️ Standard-Reihenfolge', en: '↕️ Default order' },
+  'list.sort': { de: '↕️ Reihenfolge', en: '↕️ Order' },
+  'list.filterAll': { de: 'Alle', en: 'All' },
+  'list.noCategory': { de: '🏷️ Ohne Kategorie', en: '🏷️ No category' },
+  'list.nothingInFilter': { de: 'Nichts in dieser Kategorie', en: 'Nothing in this category' },
+  'list.pinned': { de: '📌 Angeheftet', en: '📌 Pinned' },
+  'list.pin': { de: 'Oben anheften', en: 'Pin to top' },
+  'list.unpin': { de: 'Nicht mehr anheften', en: 'Unpin' },
+  'list.setCategory': { de: 'Kategorie wählen', en: 'Choose category' },
+
+  // ---------- Item categories and store order ----------
+  'cat.vegetables': { de: 'Gemüse', en: 'Vegetables' },
+  'cat.fruit': { de: 'Obst', en: 'Fruit' },
+  'cat.meat': { de: 'Fleisch & Fisch', en: 'Meat & fish' },
+  'cat.dairy': { de: 'Käse & Milchprodukte', en: 'Cheese & dairy' },
+  'cat.grains': { de: 'Teigwaren, Reis & Getreide', en: 'Pasta, rice & grains' },
+  'cat.sauces': { de: 'Öle, Saucen & Gewürze', en: 'Oils, sauces & spices' },
+  'cat.drinks': { de: 'Getränke', en: 'Drinks' },
+  'sort.defaultOrder': { de: 'Standard-Reihenfolge', en: 'Default order' },
+  'sort.orderFor': { de: 'Reihenfolge bei {name}', en: 'Order at {name}' },
+  'sort.hint': {
+    de: 'So, wie du im Laden durchläufst. Kategorien gelten für alle Listen.',
+    en: 'The way you walk through the store. Categories are shared by all lists.',
+  },
+  'sort.up': { de: 'Nach oben', en: 'Move up' },
+  'sort.down': { de: 'Nach unten', en: 'Move down' },
+  'sort.edit': { de: 'Bearbeiten', en: 'Edit' },
+  'sort.emoji': { de: 'Symbol', en: 'Symbol' },
+  'sort.newCategory': { de: 'Neue Kategorie', en: 'New category' },
+  'sort.stores': { de: 'Läden mit eigener Reihenfolge', en: 'Stores with their own order' },
+  'sort.newStore': { de: 'Neuer Laden, z. B. Migros Oerlikon', en: 'New store, e.g. Migros Oerlikon' },
+  'sort.confirmDeleteCategory': {
+    de: '„{name}" löschen? Artikel darin sind danach ohne Kategorie.',
+    en: 'Delete "{name}"? Its items will have no category.',
+  },
 
   // ---------- Admin ----------
   'admin.users': { de: '👑 Benutzer', en: '👑 Users' },
