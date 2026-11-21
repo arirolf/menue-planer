@@ -395,6 +395,9 @@ export default {
     de: 'Die Kamera konnte nicht gestartet werden. Tippe den Code ein.',
     en: "Couldn't start the camera. Type in the code.",
   },
+  'item.count': { de: 'Anzahl', en: 'Count' },
+  'item.note': { de: 'Notiz', en: 'Note' },
+  'item.notePlaceholder': { de: 'z.B. die grosse Packung', en: 'e.g. the big pack' },
   'stepper.less': { de: 'Weniger', en: 'Less' },
   'stepper.more': { de: 'Mehr', en: 'More' },
 

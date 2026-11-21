@@ -5,6 +5,8 @@
   import SortPanel from './SortPanel.svelte';
   import BasicsSheet from './BasicsSheet.svelte';
   import ScannerSheet from './ScannerSheet.svelte';
+  import ItemSheet from './ItemSheet.svelte';
+  import { longpress } from './longpress.js';
   let { id, currentUser, onback } = $props();
 
   let list = $state(null);
@@ -68,6 +70,8 @@
   let pickedHousehold = $state(readPicked());
   let showBasics = $state(false);
   let showScanner = $state(false);
+  // Item whose count/note sheet is open (long press)
+  let itemSheet = $state(null);
   let basicsHousehold = $derived.by(() => {
     if (list?.household_id) return list.household_id;
     if (!households?.length) return null;
@@ -494,7 +498,7 @@
           {/if}
           <ul class="items">
             {#each group.items as item (item.id)}
-              <li class="item">
+              <li class="item" use:longpress={() => (itemSheet = item)}>
                 <div class="item-row">
                   <button class="check" onclick={() => toggle(item)} aria-label={t('list.check')}></button>
                   <span class="text">
@@ -502,6 +506,7 @@
                     {#if item.amount}<span class="qty">{item.amount}</span>{/if}
                     {item.name}
                     {@render source(item)}
+                {#if item.note}<span class="item-note">{item.note}</span>{/if}
                   </span>
                   <button
                     class="mini"
@@ -552,13 +557,14 @@
         </div>
         <ul class="items">
           {#each done as item (item.id)}
-            <li class="item checked">
+            <li class="item checked" use:longpress={() => (itemSheet = item)}>
               <button class="check on" onclick={() => toggle(item)} aria-label={t('list.uncheck')}>✓</button>
               <span class="text">
                 {#if item.quantity > 1}<span class="count">{item.quantity}×</span>{/if}
                     {#if item.amount}<span class="qty">{item.amount}</span>{/if}
                 {item.name}
                 {@render source(item)}
+                {#if item.note}<span class="item-note">{item.note}</span>{/if}
               </span>
               <button class="delete" onclick={() => removeItem(item)} aria-label={t('common.delete')}>✕</button>
             </li>
@@ -568,6 +574,18 @@
     {/if}
   {/if}
 </div>
+
+{#if itemSheet}
+  <ItemSheet
+    listId={id}
+    item={itemSheet}
+    onclose={() => (itemSheet = null)}
+    onsaved={(changes) => {
+      Object.assign(itemSheet, changes);
+      itemSheet = null;
+    }}
+  />
+{/if}
 
 {#if showScanner && basicsHousehold}
   <ScannerSheet householdId={basicsHousehold} listId={id} {shop} onclose={() => (showScanner = false)} onadded={afterBasics} />
@@ -738,6 +756,21 @@
   }
 
   /* Open items: the row plus an optional category picker below it */
+  /* Long press opens the item sheet: no text selection or iOS callout */
+  .item {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  .item-note {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.8rem;
+    color: var(--muted);
+    white-space: pre-line;
+  }
+
   .item:has(.item-row) {
     display: block;
   }

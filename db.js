@@ -347,3 +347,8 @@ if (!db.prepare('PRAGMA table_info(list_items)').all().some((c) => c.name === 'b
     ALTER TABLE list_items ADD COLUMN quantity INTEGER NOT NULL DEFAULT 1;
   `);
 }
+
+// ---------- Item notes ("die grosse Packung") ----------
+if (!db.prepare('PRAGMA table_info(list_items)').all().some((c) => c.name === 'note')) {
+  db.exec('ALTER TABLE list_items ADD COLUMN note TEXT');
+}

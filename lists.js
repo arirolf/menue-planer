@@ -84,7 +84,7 @@ router.get('/:id', loadList, (req, res) => {
   const tags = tagMap();
   list.items = db
     .prepare(`
-      SELECT id, name, amount, checked, pinned, recipe_name, planned_date, servings, basic_id, quantity
+      SELECT id, name, amount, checked, pinned, recipe_name, planned_date, servings, basic_id, quantity, note
       FROM list_items WHERE list_id = ? ORDER BY checked, id
     `)
     .all(list.id)
@@ -229,25 +229,42 @@ router.post('/:id/items/from-basic/:basicId', loadList, (req, res) => {
   res.status(201).json(result);
 });
 
-// Body { checked } and/or { pinned }, both true or false
+// Any subset of { checked, pinned } (booleans), { quantity } (1-99) and { note }
+// (text up to 300 characters, empty = no note). Only the fields sent get changed.
+const MAX_ITEM_NOTE = 300;
+
 router.patch('/:id/items/:itemId', loadList, (req, res) => {
-  const { checked, pinned } = req.body ?? {};
-  if ((checked === undefined && pinned === undefined)
-      || (checked !== undefined && typeof checked !== 'boolean')
-      || (pinned !== undefined && typeof pinned !== 'boolean')) {
-    return res.status(400).json({ error: 'checked and pinned must be true or false' });
+  const body = req.body ?? {};
+  const changes = {};
+
+  for (const key of ['checked', 'pinned']) {
+    if (body[key] === undefined) continue;
+    if (typeof body[key] !== 'boolean') return res.status(400).json({ error: `${key} must be true or false` });
+    changes[key] = Number(body[key]);
   }
+  if (body.quantity !== undefined) {
+    if (!Number.isInteger(body.quantity) || body.quantity < 1 || body.quantity > 99) {
+      return res.status(400).json({ error: 'quantity must be a whole number from 1 to 99' });
+    }
+    changes.quantity = body.quantity;
+  }
+  if (body.note !== undefined) {
+    if (body.note !== null && typeof body.note !== 'string') return res.status(400).json({ error: 'note must be text' });
+    const note = body.note?.trim() ?? '';
+    if (note.length > MAX_ITEM_NOTE) {
+      return res.status(400).json({ error: `note can be at most ${MAX_ITEM_NOTE} characters` });
+    }
+    changes.note = note || null;
+  }
+  if (Object.keys(changes).length === 0) {
+    return res.status(400).json({ error: 'Send checked, pinned, quantity or note' });
+  }
+
+  // Column names come from the fixed keys above, never from the request
+  const sets = Object.keys(changes).map((key) => `${key} = ?`).join(', ');
   const r = db
-    .prepare(`
-      UPDATE list_items SET checked = COALESCE(?, checked), pinned = COALESCE(?, pinned)
-      WHERE id = ? AND list_id = ?
-    `)
-    .run(
-      checked === undefined ? null : Number(checked),
-      pinned === undefined ? null : Number(pinned),
-      Number(req.params.itemId),
-      req.list.id
-    );
+    .prepare(`UPDATE list_items SET ${sets} WHERE id = ? AND list_id = ?`)
+    .run(...Object.values(changes), Number(req.params.itemId), req.list.id);
   if (r.changes === 0) return res.status(404).json({ error: 'Item not found' });
   res.json({ ok: true });
 });
