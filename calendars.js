@@ -340,9 +340,16 @@ router.get('/:id/to-list/preview', loadCalendar, (req, res) => {
   });
 });
 
+// Optional body meal_ids: only these of the new meals get added (the others stay "new");
+// left out = all new meals in the range
 router.post('/:id/to-list', loadCalendar, (req, res) => {
   const input = readListRange(req, req.body);
   if (input.error) return res.status(input.status).json({ error: input.error });
+  const mealIds = req.body?.meal_ids ?? null;
+  if (mealIds !== null && (!Array.isArray(mealIds) || !mealIds.every(Number.isInteger))) {
+    return res.status(400).json({ error: 'meal_ids must be a list of meal ids' });
+  }
+  const chosen = mealIds && new Set(mealIds);
   const decimal = req.user.language === 'en' ? '.' : ',';
 
   const ingredients = db.prepare('SELECT name, amount, amount_6, amount_8 FROM ingredients WHERE recipe_id = ? ORDER BY id');
@@ -364,6 +371,8 @@ router.post('/:id/to-list', loadCalendar, (req, res) => {
         counts.skipped_meals++;
         continue;
       }
+      // Not picked in the sheet: leave it for later, nothing is remembered
+      if (chosen && !chosen.has(meal.id)) continue;
       // Ingredients scaled to how many people eat that meal
       for (const ing of ingredients.all(meal.recipe_id)) {
         insertItem.run(

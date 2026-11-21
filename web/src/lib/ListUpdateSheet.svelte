@@ -37,6 +37,17 @@
   );
   let newCount = $derived(meals.filter((m) => m.status === 'new').length);
 
+  // Which new meals get added: later days are on by default, today's off
+  // (often already bought). choices keeps what the user toggled, by meal id.
+  let choices = $state({});
+  const isOn = (m) => choices[m.id] ?? m.date > today;
+  let selected = $derived(meals.filter((m) => m.status === 'new' && isOn(m)));
+
+  function toggle(m) {
+    choices[m.id] = !isOn(m);
+    message = '';
+  }
+
   function savedList() {
     try {
       const id = Number(localStorage.getItem(LIST_KEY));
@@ -87,7 +98,7 @@
   });
 
   async function update() {
-    if (busy || newCount === 0) return;
+    if (busy || selected.length === 0) return;
     busy = true;
     error = '';
     message = '';
@@ -95,7 +106,7 @@
       const res = await fetch(`/api/calendars/${calendarId}/to-list`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ list_id: listId, from, to }),
+        body: JSON.stringify({ list_id: listId, from, to, meal_ids: selected.map((m) => m.id) }),
       });
       if (!res.ok) throw new Error();
       const r = await res.json();
@@ -161,12 +172,25 @@
       <ul class="meals" class:faded={loading}>
         {#each meals as m (m.id)}
           <li>
-            <span class="when">{formatShort(m.date)} · {slotLabel(m.slot)}</span>
-            <span class="recipe">{m.recipe_name}</span>
             {#if m.status === 'new'}
-              <span class="status new">{t('update.statusNew')}</span>
+              <button class="meal" class:off={!isOn(m)} onclick={() => toggle(m)} aria-pressed={isOn(m)}>
+                <span class="box" aria-hidden="true">{isOn(m) ? '✓' : ''}</span>
+                <span class="text">
+                  <span class="when">
+                    {formatShort(m.date)} · {slotLabel(m.slot)}{#if m.date === today} · {t('update.today')}{/if}
+                  </span>
+                  <span class="recipe">{m.recipe_name}</span>
+                </span>
+              </button>
             {:else}
-              <span class="status">{t('update.statusAlready')}</span>
+              <div class="meal done">
+                <span class="box" aria-hidden="true"></span>
+                <span class="text">
+                  <span class="when">{formatShort(m.date)} · {slotLabel(m.slot)}</span>
+                  <span class="recipe">{m.recipe_name}</span>
+                </span>
+                <span class="status">{t('update.statusAlready')}</span>
+              </div>
             {/if}
           </li>
         {/each}
@@ -177,13 +201,15 @@
   <div class="bottom">
     {#if message}<p class="success">{message}</p>{/if}
     {#if error}<p class="error">{error}</p>{/if}
-    <button class="btn-primary big" onclick={update} disabled={busy || loading || newCount === 0 || !!rangeError}>
+    <button class="btn-primary big" onclick={update} disabled={busy || loading || selected.length === 0 || !!rangeError}>
       {#if busy}
         {t('common.saving')}
       {:else if newCount === 0}
         {t('update.nothingNew')}
+      {:else if selected.length === 0}
+        {t('update.noneSelected')}
       {:else}
-        {t(newCount === 1 ? 'update.buttonOne' : 'update.button', { n: newCount })}
+        {t(selected.length === 1 ? 'update.buttonOne' : 'update.button', { n: selected.length })}
       {/if}
     </button>
     <button class="ghost close" onclick={onclose}>{t('common.done')}</button>
@@ -257,41 +283,67 @@
 
   .meals.faded { opacity: 0.5; }
 
-  .meals li {
+  .meals li { border-bottom: 1px solid var(--tag); }
+
+  /* One row per meal; new meals are a toggle (the whole row is tappable) */
+  .meal {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 60px;
+    padding: 8px 4px;
+    border: none;
+    background: none;
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+  }
+
+  button.meal { cursor: pointer; }
+  button.meal:hover { background: var(--tag); }
+
+  .box {
+    flex-shrink: 0;
     display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 2px 8px;
-    padding: 10px 2px;
-    border-bottom: 1px solid var(--tag);
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-weight: 700;
+  }
+
+  .meal.off .box { background: none; border-color: var(--muted); }
+  .meal.off .recipe { color: var(--muted); }
+  .meal.done .box { visibility: hidden; }
+  .meal.done .recipe { color: var(--muted); font-weight: 400; }
+
+  .text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
   }
 
   .when {
-    grid-column: 1;
     color: var(--muted);
     font-size: 0.8rem;
   }
 
-  .recipe {
-    grid-column: 1;
-    font-weight: 600;
-  }
+  .recipe { font-weight: 600; }
 
   .status {
-    grid-column: 2;
-    grid-row: 1 / span 2;
-    align-self: center;
+    flex-shrink: 0;
     padding: 4px 10px;
     border-radius: 999px;
     background: var(--tag);
     color: var(--muted);
     font-size: 0.8rem;
     white-space: nowrap;
-  }
-
-  .status.new {
-    background: var(--accent);
-    color: var(--on-accent);
-    font-weight: 600;
   }
 
   .bottom { padding-top: 12px; }
