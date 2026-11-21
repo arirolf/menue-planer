@@ -242,6 +242,10 @@ export default {
   'update.pickDates': { de: 'Bitte Von und Bis wählen', en: 'Please pick from and to' },
   'update.fromAfterTo': { de: '„Von“ liegt nach „Bis“', en: '"From" is after "To"' },
   'update.tooLong': { de: 'Höchstens {n} Tage auf einmal', en: 'At most {n} days at once' },
+  'update.pastSkipped': {
+    de: 'Vergangene Tage werden nicht hinzugefügt, erst ab heute.',
+    en: 'Past days are not added, only from today on.',
+  },
   'update.statusNew': { de: 'neu', en: 'new' },
   'update.statusAlready': { de: '✓ schon auf der Liste', en: '✓ already on the list' },
   'update.button': { de: 'Liste aktualisieren ({n} neue Gerichte)', en: 'Update list ({n} new meals)' },

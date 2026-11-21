@@ -19,7 +19,7 @@ gemeinsamer Kalender und Einkaufslisten. Oberfläche auf Deutsch und Englisch.*
 - **Shopping lists**: one shared list per household, plus personal lists you can share.
   Add a recipe's ingredients with one tap, adjust single amounts with +/− before adding
   them, and tap 🏠 on what you already have at home. "Update shopping list" in the calendar
-  adds every planned meal of a date range you pick, and each meal only once: pressing it
+  adds every planned meal of a date range you pick (from today on, past meals are skipped), and each meal only once: pressing it
   again, or after the items were checked off and cleared, adds nothing twice, and it never
   changes items already on the list. Long-press an item to change its count or add a note
   ("the big pack").
@@ -90,6 +90,7 @@ Set these under `environment:` in `docker-compose.yml`:
 | `ADMIN_PASSWORD` | random | Password for that admin (otherwise one is generated and printed in the logs) |
 | `PORT` | `4100` | Port inside the container |
 | `RECIPE_CHECKS` | off | `1` flags recipes nobody has checked yet ⚠️ (set it in a `.env` file next to `docker-compose.yml`) |
+| `TZ` | `Europe/Zurich` | Time zone the server uses for "today" (e.g. past meals aren't added to the shopping list). Set it in a `.env` file next to `docker-compose.yml` |
 | `TRUST_PROXY` | private networks | Which reverse proxies to trust, in [Express format](https://expressjs.com/en/guide/behind-proxies.html) |
 
 `ADMIN_USERNAME` and `ADMIN_PASSWORD` are only used while the database has no users yet.

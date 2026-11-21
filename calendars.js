@@ -2,7 +2,7 @@ import express from 'express';
 import { db, transaction } from './db.js';
 import { requireAdmin } from './auth.js';
 import { BASE_SERVINGS, amountFor, isValidServings } from './shared/scale.js';
-import { ADD_WINDOW_DAYS, recordAdd } from './recipeAdds.js';
+import { ADD_WINDOW_DAYS, recordAdd, todayISO } from './recipeAdds.js';
 
 const router = express.Router();
 export const adminRouter = express.Router();
@@ -291,7 +291,8 @@ function readListRange(req, source) {
   return { listId, ...range };
 }
 
-// Each meal with a recipe in the range, with what an update would do:
+// Each meal with a recipe in the range, from today on (past meals are never added),
+// with what an update would do:
 //   status 'already' – this meal's ingredients are on the list (claim: an unlinked direct add
 //                      of the same recipe, at most 14 days before the meal, gets linked to it)
 //   status 'new'     – its ingredients get added (stale: tracking row of a recipe the meal had before)
@@ -300,10 +301,10 @@ function planListUpdate(calendarId, listId, from, to) {
     .prepare(`
       SELECT m.id, m.date, m.slot, m.position, m.servings, m.recipe_id, r.name AS recipe_name
       FROM meal_plans m JOIN recipes r ON r.id = m.recipe_id
-      WHERE m.calendar_id = ? AND m.date BETWEEN ? AND ?
+      WHERE m.calendar_id = ? AND m.date BETWEEN ? AND ? AND m.date >= ?
       ORDER BY m.date, CASE m.slot WHEN 'lunch' THEN 0 ELSE 1 END, m.position
     `)
-    .all(calendarId, from, to);
+    .all(calendarId, from, to, todayISO());
   const tracked = db.prepare('SELECT id, recipe_id FROM list_recipe_adds WHERE list_id = ? AND meal_plan_id = ?');
   const unlinked = db.prepare(`
     SELECT id FROM list_recipe_adds

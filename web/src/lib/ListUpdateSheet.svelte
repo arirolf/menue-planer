@@ -12,9 +12,10 @@
   const shift = (iso, days) => toISO(addDays(fromISO(iso), days));
   const monday = toISO(startOfWeek(fromISO(today)));
 
+  // Past days are never added, so "this week" starts today at the earliest
   const presets = [
     { key: 'next7', from: today, to: shift(today, 6) },
-    { key: 'thisWeek', from: monday, to: shift(monday, 6) },
+    { key: 'thisWeek', from: today, to: shift(monday, 6) },
     { key: 'nextWeek', from: shift(monday, 7), to: shift(monday, 13) },
   ];
 
@@ -127,13 +128,17 @@
     <div class="dates">
       <label>
         <span class="label">{t('update.from')}</span>
-        <input type="date" bind:value={from} oninput={() => (message = '')} />
+        <input type="date" min={today} bind:value={from} oninput={() => (message = '')} />
       </label>
       <label>
         <span class="label">{t('update.to')}</span>
-        <input type="date" bind:value={to} oninput={() => (message = '')} />
+        <input type="date" min={today} bind:value={to} oninput={() => (message = '')} />
       </label>
     </div>
+
+    {#if from && from < today && !rangeError}
+      <p class="past-hint">{t('update.pastSkipped')}</p>
+    {/if}
 
     <label class="list-pick">
       <span class="label">{t('update.list')}</span>
@@ -227,6 +232,12 @@
   .label { display: block; margin-bottom: 4px; }
 
   .list-pick { display: block; margin-bottom: 12px; }
+
+  .past-hint {
+    margin: -2px 0 10px;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
   .list-pick select { width: 100%; min-height: 48px; }
 
   .scroll {

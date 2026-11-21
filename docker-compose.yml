@@ -5,6 +5,8 @@ services:
     restart: unless-stopped
     environment:
       - PORT=4100
+      # Time zone for "today" (e.g. past meals aren't added to the shopping list)
+      - TZ=${TZ:-Europe/Zurich}
       # Name of the admin created on the very first start (password is printed in the logs)
       # - ADMIN_USERNAME=admin
       # Optional features, set them in a .env file next to this one (e.g. RECIPE_CHECKS=1)
