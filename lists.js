@@ -3,6 +3,7 @@ import { db, transaction } from './db.js';
 import { BASE_SERVINGS, amountFor, isValidServings } from './shared/scale.js';
 import { isValidDate } from './calendars.js';
 import { nameKey, tagMap } from './shop.js';
+import { basicForUser } from './basics.js';
 
 const router = express.Router();
 
@@ -196,6 +197,36 @@ router.post('/:id/items', loadList, (req, res) => {
     .prepare('INSERT INTO list_items (list_id, name, amount, added_by) VALUES (?, ?, ?, ?)')
     .run(req.list.id, name.trim(), cleanAmount, req.user.id);
   res.status(201).json({ id: Number(r.lastInsertRowid) });
+});
+
+// Add a household Basic (body { quantity }, 1-99, default 1). If it's already open
+// (unchecked) on this list, its quantity goes up instead of adding a second line.
+router.post('/:id/items/from-basic/:basicId', loadList, (req, res) => {
+  const quantity = req.body?.quantity ?? 1;
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
+    return res.status(400).json({ error: 'quantity must be a whole number from 1 to 99' });
+  }
+  const basic = basicForUser(Number(req.params.basicId), req.user.id);
+  if (!basic) return res.status(404).json({ error: 'Basic not found' });
+
+  const result = transaction(() => {
+    const open = db
+      .prepare('SELECT id FROM list_items WHERE list_id = ? AND basic_id = ? AND checked = 0 ORDER BY id LIMIT 1')
+      .get(req.list.id, basic.id);
+    let itemId;
+    if (open) {
+      itemId = open.id;
+      db.prepare('UPDATE list_items SET quantity = MIN(quantity + ?, 99) WHERE id = ?').run(quantity, itemId);
+    } else {
+      const r = db
+        .prepare('INSERT INTO list_items (list_id, name, amount, added_by, basic_id, quantity) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(req.list.id, basic.name, basic.default_amount, req.user.id, basic.id, quantity);
+      itemId = Number(r.lastInsertRowid);
+    }
+    db.prepare('UPDATE basics SET times_added = times_added + 1 WHERE id = ?').run(basic.id);
+    return { item_id: itemId, quantity: db.prepare('SELECT quantity FROM list_items WHERE id = ?').get(itemId).quantity };
+  });
+  res.status(201).json(result);
 });
 
 // Body { checked } and/or { pinned }, both true or false

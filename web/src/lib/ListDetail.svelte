@@ -428,6 +428,7 @@
                 <div class="item-row">
                   <button class="check" onclick={() => toggle(item)} aria-label={t('list.check')}></button>
                   <span class="text">
+                    {#if item.quantity > 1}<span class="count">{item.quantity}×</span>{/if}
                     {#if item.amount}<span class="qty">{item.amount}</span>{/if}
                     {item.name}
                     {@render source(item)}
@@ -484,7 +485,8 @@
             <li class="item checked">
               <button class="check on" onclick={() => toggle(item)} aria-label={t('list.uncheck')}>✓</button>
               <span class="text">
-                {#if item.amount}<span class="qty">{item.amount}</span>{/if}
+                {#if item.quantity > 1}<span class="count">{item.quantity}×</span>{/if}
+                    {#if item.amount}<span class="qty">{item.amount}</span>{/if}
                 {item.name}
                 {@render source(item)}
               </span>
@@ -737,6 +739,12 @@
 
   .qty {
     color: var(--muted);
+    margin-right: 6px;
+  }
+
+  /* "2×" from adding a Basic several times */
+  .count {
+    font-weight: 700;
     margin-right: 6px;
   }
 
