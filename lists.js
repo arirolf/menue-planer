@@ -4,6 +4,7 @@ import { BASE_SERVINGS, amountFor, isValidServings } from './shared/scale.js';
 import { isValidDate } from './calendars.js';
 import { nameKey, tagMap } from './shop.js';
 import { basicForUser } from './basics.js';
+import { findMealToClaim, recentAdd, recordAdd } from './recipeAdds.js';
 
 const router = express.Router();
 
@@ -287,6 +288,10 @@ router.delete('/:id/checked', loadList, (req, res) => {
 // Optional body { servings: 6, planned_date: "2026-11-14", amounts: [null, "1½"] }:
 // servings scales the amounts (recipes are written for 4), both get shown on the items;
 // amounts replaces single ones the user changed by hand.
+// If the recipe was already added to this list in the last 14 days, nothing is added
+// ({ added: 0, already: true }) unless the body has force: true. Each add covers one
+// planned meal of the recipe (on planned_date if given, else the next one), so the
+// calendar's "update the list" doesn't add that meal again.
 router.post('/:id/from-recipe/:recipeId', loadList, (req, res) => {
   const servings = req.body?.servings ?? BASE_SERVINGS;
   if (!isValidServings(servings)) {
@@ -324,6 +329,13 @@ router.post('/:id/from-recipe/:recipeId', loadList, (req, res) => {
   if ((amounts && amounts.length !== ingredients.length) || skip.some((i) => i >= ingredients.length)) {
     return res.status(409).json({ error: 'The recipe was changed, please reload it' });
   }
+  const force = req.body?.force ?? false;
+  if (typeof force !== 'boolean') return res.status(400).json({ error: 'force must be true or false' });
+
+  const recent = recentAdd(req.list.id, recipe.id);
+  if (recent && !force) {
+    return res.json({ added: 0, already: true, meal_date: recent.meal_date ?? null });
+  }
   const decimal = req.user.language === 'en' ? '.' : ',';
 
   const insert = db.prepare(`
@@ -333,6 +345,8 @@ router.post('/:id/from-recipe/:recipeId', loadList, (req, res) => {
   `);
   let added = 0;
   transaction(() => {
+    const meal = findMealToClaim({ listId: req.list.id, recipeId: recipe.id, userId: req.user.id, date: plannedDate });
+    recordAdd({ listId: req.list.id, recipeId: recipe.id, mealId: meal?.id ?? null, userId: req.user.id });
     ingredients.forEach((ing, i) => {
       if (skip.includes(i)) return;
       added++;

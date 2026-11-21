@@ -22,6 +22,8 @@
   // Kept when rolling again, the family size doesn't change between recipes
   let servings = $state(BASE_SERVINGS);
   let addedMessage = $state('');
+  // Server said the recipe is already on that list: offer to add it anyway
+  let alreadyMessage = $state('');
   // Shown on the list items; filled in automatically after planning it in the calendar
   let listDate = $state('');
 
@@ -97,6 +99,7 @@
     error = '';
     planMessage = '';
     addedMessage = '';
+    alreadyMessage = '';
     custom = {};
     editing = null;
     atHome = [];
@@ -135,8 +138,10 @@
     }
   }
 
-  async function addToList() {
+  async function addToList(force = false) {
     if (!targetListId) return;
+    addedMessage = '';
+    alreadyMessage = '';
     try {
       const res = await fetch(`/api/lists/${targetListId}/from-recipe/${recipe.id}`, {
         method: 'POST',
@@ -146,10 +151,17 @@
           planned_date: listDate || null,
           amounts: recipe.ingredients.map((_, i) => (changed(i) ? custom[i].text : null)),
           skip: atHome,
+          force,
         }),
       });
       if (!res.ok) throw new Error();
       const data = await res.json();
+      if (data.already) {
+        alreadyMessage = data.meal_date
+          ? t('sheet.alreadyOnListFor', { date: formatShort(data.meal_date) })
+          : t('sheet.alreadyOnList');
+        return;
+      }
       const list = lists.find((l) => l.id === targetListId);
       addedMessage = t('servings.addedFor', { n: data.added, people: servings, list: list?.name });
     } catch {
@@ -276,7 +288,7 @@
     {#if recipe.ingredients.length > 0 && lists.length > 0}
       <div class="action">
         <span class="label">{t('sheet.toList')}</span>
-        <select class="spaced" bind:value={targetListId}>
+        <select class="spaced" bind:value={targetListId} onchange={() => (alreadyMessage = '')}>
           {#each lists as l (l.id)}
             <option value={l.id}>{l.household_id ? '🏠' : '📝'} {l.name}</option>
           {/each}
@@ -285,10 +297,14 @@
           <span>{t('sheet.listDate')}</span>
           <input type="date" bind:value={listDate} />
         </label>
-        <button class="action-btn" onclick={addToList} disabled={atHome.length >= recipe.ingredients.length}>
+        <button class="action-btn" onclick={() => addToList()} disabled={atHome.length >= recipe.ingredients.length}>
           {t('sheet.addToList')}
         </button>
         {#if addedMessage}<p class="message ok">{addedMessage}</p>{/if}
+        {#if alreadyMessage}
+          <p class="message ok">✓ {alreadyMessage}</p>
+          <button class="anyway" onclick={() => addToList(true)}>{t('sheet.addAnyway')}</button>
+        {/if}
       </div>
     {/if}
   {/if}
@@ -302,6 +318,20 @@
 </div>
 
 <style>
+  .anyway {
+    display: block;
+    margin: 4px auto 0;
+    min-height: 44px;
+    padding: 0 12px;
+    border: none;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-size: 0.9rem;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
   .badge {
     display: inline-block;
     margin-bottom: 8px;

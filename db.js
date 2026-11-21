@@ -352,3 +352,55 @@ if (!db.prepare('PRAGMA table_info(list_items)').all().some((c) => c.name === 'b
 if (!db.prepare('PRAGMA table_info(list_items)').all().some((c) => c.name === 'note')) {
   db.exec('ALTER TABLE list_items ADD COLUMN note TEXT');
 }
+
+// ---------- Which recipes/meals already went onto which list ----------
+// One row per time a recipe's ingredients were added. meal_plan_id links it to the planned
+// meal it covers (NULL = added directly and not linked to a meal yet). Rows stay after the
+// items are checked off and cleared, so "update the list" never adds the same meal twice.
+const hadRecipeAdds = db
+  .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'list_recipe_adds'")
+  .get();
+db.exec(`
+  CREATE TABLE IF NOT EXISTS list_recipe_adds (
+    id            INTEGER PRIMARY KEY,
+    list_id       INTEGER NOT NULL REFERENCES shopping_lists(id) ON DELETE CASCADE,
+    recipe_id     INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+    meal_plan_id  INTEGER REFERENCES meal_plans(id) ON DELETE CASCADE,
+    created_by    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE UNIQUE INDEX IF NOT EXISTS list_recipe_adds_meal
+    ON list_recipe_adds (list_id, meal_plan_id) WHERE meal_plan_id IS NOT NULL;
+`);
+// One-time backfill for what's already on the lists, so the first update after this
+// migration doesn't add it again. Items with a planned date get linked to that meal
+// (in a calendar of the list's household, or of the owner's households) when it exists.
+if (!hadRecipeAdds) {
+  transaction(() => {
+    const groups = db
+      .prepare(`
+        SELECT DISTINCT list_id, recipe_id, planned_date FROM list_items
+        WHERE recipe_id IS NOT NULL AND recipe_id IN (SELECT id FROM recipes)
+      `)
+      .all();
+    const findMeal = db.prepare(`
+      SELECT m.id FROM meal_plans m
+      JOIN calendars c ON c.id = m.calendar_id
+      JOIN shopping_lists l ON l.id = ?
+      WHERE m.recipe_id = ? AND m.date = ?
+        AND (c.household_id = l.household_id
+             OR c.household_id IN (SELECT household_id FROM household_members WHERE user_id = l.owner_id))
+        AND NOT EXISTS (SELECT 1 FROM list_recipe_adds a WHERE a.list_id = l.id AND a.meal_plan_id = m.id)
+      ORDER BY m.position LIMIT 1
+    `);
+    const unlinked = db.prepare(
+      'SELECT 1 FROM list_recipe_adds WHERE list_id = ? AND recipe_id = ? AND meal_plan_id IS NULL'
+    );
+    const insert = db.prepare('INSERT INTO list_recipe_adds (list_id, recipe_id, meal_plan_id) VALUES (?, ?, ?)');
+    for (const g of groups) {
+      const meal = g.planned_date ? findMeal.get(g.list_id, g.recipe_id, g.planned_date) : null;
+      if (meal) insert.run(g.list_id, g.recipe_id, meal.id);
+      else if (!unlinked.get(g.list_id, g.recipe_id)) insert.run(g.list_id, g.recipe_id, null);
+    }
+  });
+}
