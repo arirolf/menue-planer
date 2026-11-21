@@ -14,10 +14,11 @@
   let search = $state('');
   let selected = $derived(recipes.find((r) => r.id === Number(recipeId)) ?? null);
 
+  // All recipes (already sorted by name), narrowed down while typing.
   // Same matching as the plan screen: name, notes or an ingredient
   let results = $derived.by(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return [];
+    if (!q) return recipes;
     return recipes.filter(
       (r) =>
         r.name.toLowerCase().includes(q) ||
@@ -113,16 +114,14 @@
           }
         }}
       />
-      {#if search.trim()}
-        {#if results.length}
-          <ul class="results">
-            {#each results as r (r.id)}
-              <li><button type="button" onclick={() => pickRecipe(r)}>{r.name}</button></li>
-            {/each}
-          </ul>
-        {:else}
-          <p class="none">{t('meal.noRecipeFound')}</p>
-        {/if}
+      {#if results.length}
+        <ul class="results">
+          {#each results as r (r.id)}
+            <li><button type="button" onclick={() => pickRecipe(r)}>{r.name}</button></li>
+          {/each}
+        </ul>
+      {:else if search.trim()}
+        <p class="none">{t('meal.noRecipeFound')}</p>
       {/if}
     {/if}
   </div>
