@@ -92,6 +92,12 @@
     }
   }
 
+  // A Basic was added or its category set: reload items and remembered categories
+  function afterBasics() {
+    refreshItems();
+    loadShop();
+  }
+
   async function loadHouseholds() {
     try {
       const res = await fetch('/api/households');
@@ -564,11 +570,11 @@
 </div>
 
 {#if showScanner && basicsHousehold}
-  <ScannerSheet householdId={basicsHousehold} listId={id} onclose={() => (showScanner = false)} onadded={refreshItems} />
+  <ScannerSheet householdId={basicsHousehold} listId={id} {shop} onclose={() => (showScanner = false)} onadded={afterBasics} />
 {/if}
 
 {#if showBasics && basicsHousehold}
-  <BasicsSheet householdId={basicsHousehold} listId={id} onclose={() => (showBasics = false)} onadded={refreshItems} />
+  <BasicsSheet householdId={basicsHousehold} listId={id} {shop} onclose={() => (showBasics = false)} onadded={afterBasics} />
 {/if}
 
 <style>

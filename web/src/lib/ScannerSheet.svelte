@@ -2,9 +2,11 @@
   import { fly, fade } from 'svelte/transition';
   import { t } from './i18n.svelte.js';
   import QuantityStepper from './QuantityStepper.svelte';
+  import CategoryPicker from './CategoryPicker.svelte';
 
-  // householdId: whose Basics; listId: the open list items get added to
-  let { householdId, listId, onclose, onadded } = $props();
+  // householdId: whose Basics; listId: the open list items get added to;
+  // shop: categories (from /api/shop) for the category picker
+  let { householdId, listId, shop, onclose, onadded } = $props();
 
   // 'camera' | 'manual' (type in a code) → 'busy' → 'quantity' (known Basic) | 'new' (unknown code)
   // mode: where to go back to after each product
@@ -18,7 +20,7 @@
   let found = $state(null);
   let quantity = $state(1);
   // Form for an unknown code
-  let form = $state({ name: '', default_amount: '', barcode: '', alsoAdd: false });
+  let form = $state({ name: '', default_amount: '', barcode: '', category_id: null, alsoAdd: false });
   let saving = $state(false);
 
   const BARCODE = /^\d{6,14}$/;
@@ -107,7 +109,15 @@
       if (status !== 404) throw new Error();
       // New product: pre-fill from Open Food Facts (nulls if unknown)
       const product = (await getJson(`/api/barcode/${clean}`)).data ?? {};
-      form = { name: productName(product), default_amount: product.amount ?? '', barcode: clean, alsoAdd: false };
+      const name = productName(product);
+      form = {
+        name,
+        default_amount: product.amount ?? '',
+        barcode: clean,
+        // Pre-select the category this name already has, if any
+        category_id: shop.tags?.[name.trim().toLocaleLowerCase('de')] ?? null,
+        alsoAdd: false,
+      };
       view = 'new';
     } catch {
       error = t('scan.offline');
@@ -155,7 +165,12 @@
       const { status, data } = await getJson(`/api/households/${householdId}/basics`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: form.name, default_amount: form.default_amount, barcode: form.barcode }),
+        body: JSON.stringify({
+          name: form.name,
+          default_amount: form.default_amount,
+          barcode: form.barcode,
+          category_id: form.category_id,
+        }),
       });
       if (status === 409) {
         // Someone else just saved this code: treat it as known
@@ -169,6 +184,8 @@
         message = t('scan.savedAndAdded', { name });
       } else {
         message = t('scan.saved', { name });
+        // The category is remembered per name, so list items may have moved
+        if (form.category_id !== null) onadded?.();
       }
       next();
     } catch {
@@ -229,6 +246,7 @@
       <input type="text" bind:value={form.name} placeholder={t('basics.name')} maxlength="100" required />
       <input type="text" bind:value={form.default_amount} placeholder={t('basics.amount')} maxlength="30" />
       <input type="text" value={form.barcode} readonly aria-label={t('basics.barcode')} class="readonly" />
+      <CategoryPicker {shop} bind:value={form.category_id} />
       <label class="also">
         <input type="checkbox" bind:checked={form.alsoAdd} />
         {t('scan.alsoAdd')}

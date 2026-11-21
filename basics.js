@@ -1,5 +1,6 @@
 import express from 'express';
-import { db } from './db.js';
+import { db, transaction } from './db.js';
+import { nameKey, setTag, tagMap } from './shop.js';
 
 // Basics: a per-household catalogue of things bought regularly (milk, bread …),
 // optionally with a barcode. Every member of the household shares the same Basics.
@@ -55,7 +56,15 @@ function validateBasic(body) {
   if (barcode !== null && typeof barcode !== 'string') return { error: 'barcode must be text' };
   if (cleanBarcode !== null && !BARCODE.test(cleanBarcode)) return { error: 'barcode must be 6-14 digits' };
 
-  return { value: { name, default_amount: amount?.trim() || null, barcode: cleanBarcode } };
+  // Optional category, remembered per item name like everywhere else
+  // (undefined = leave the remembered one alone, null = forget it)
+  const cat = body.category_id;
+  if (cat !== undefined && cat !== null
+      && (!Number.isInteger(cat) || !db.prepare('SELECT id FROM item_categories WHERE id = ?').get(cat))) {
+    return { error: 'category_id must be an existing category or null' };
+  }
+
+  return { value: { name, default_amount: amount?.trim() || null, barcode: cleanBarcode, category_id: cat } };
 }
 
 function barcodeTaken(householdId, barcode, exceptId = null) {
@@ -84,15 +93,23 @@ router.get('/households', (req, res) => {
   );
 });
 
+// category_id comes from the remembered category for the name
+function withCategory(basics) {
+  const tags = tagMap();
+  return basics.map((b) => ({ ...b, category_id: tags.get(nameKey(b.name)) ?? null }));
+}
+
 // Most used first
 router.get('/households/:id/basics', loadHousehold, (req, res) => {
   res.json(
-    db
-      .prepare(`
-        SELECT id, name, default_amount, barcode, times_added FROM basics
-        WHERE household_id = ? ORDER BY times_added DESC, name COLLATE NOCASE
-      `)
-      .all(req.householdId)
+    withCategory(
+      db
+        .prepare(`
+          SELECT id, name, default_amount, barcode, times_added FROM basics
+          WHERE household_id = ? ORDER BY times_added DESC, name COLLATE NOCASE
+        `)
+        .all(req.householdId)
+    )
   );
 });
 
@@ -101,7 +118,7 @@ router.get('/households/:id/basics/by-barcode/:code', loadHousehold, (req, res) 
     .prepare('SELECT id, name, default_amount, barcode, times_added FROM basics WHERE household_id = ? AND barcode = ?')
     .get(req.householdId, req.params.code);
   if (!basic) return res.status(404).json({ error: 'Basic not found' });
-  res.json(basic);
+  res.json(withCategory([basic])[0]);
 });
 
 router.post('/households/:id/basics', loadHousehold, (req, res) => {
@@ -111,10 +128,14 @@ router.post('/households/:id/basics', loadHousehold, (req, res) => {
     return res.status(409).json({ error: 'This barcode is already a Basic' });
   }
   try {
-    const r = db
-      .prepare('INSERT INTO basics (household_id, name, default_amount, barcode, created_by) VALUES (?, ?, ?, ?, ?)')
-      .run(req.householdId, value.name, value.default_amount, value.barcode, req.user.id);
-    res.status(201).json({ id: Number(r.lastInsertRowid) });
+    const id = transaction(() => {
+      const r = db
+        .prepare('INSERT INTO basics (household_id, name, default_amount, barcode, created_by) VALUES (?, ?, ?, ?, ?)')
+        .run(req.householdId, value.name, value.default_amount, value.barcode, req.user.id);
+      if (value.category_id !== undefined) setTag(value.name, value.category_id);
+      return Number(r.lastInsertRowid);
+    });
+    res.status(201).json({ id });
   } catch (err) {
     // Two scans at the same moment
     if (isUniqueError(err)) return res.status(409).json({ error: 'This barcode is already a Basic' });
@@ -131,8 +152,11 @@ router.put('/basics/:id', (req, res) => {
     return res.status(409).json({ error: 'This barcode is already a Basic' });
   }
   try {
-    db.prepare('UPDATE basics SET name = ?, default_amount = ?, barcode = ? WHERE id = ?')
-      .run(value.name, value.default_amount, value.barcode, basic.id);
+    transaction(() => {
+      db.prepare('UPDATE basics SET name = ?, default_amount = ?, barcode = ? WHERE id = ?')
+        .run(value.name, value.default_amount, value.barcode, basic.id);
+      if (value.category_id !== undefined) setTag(value.name, value.category_id);
+    });
     res.json({ ok: true });
   } catch (err) {
     if (isUniqueError(err)) return res.status(409).json({ error: 'This barcode is already a Basic' });

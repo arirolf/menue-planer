@@ -2,9 +2,13 @@
   import { fly, fade } from 'svelte/transition';
   import { t } from './i18n.svelte.js';
   import QuantityStepper from './QuantityStepper.svelte';
+  import CategoryPicker from './CategoryPicker.svelte';
 
-  // householdId: whose Basics; listId: the open list items get added to
-  let { householdId, listId, onclose, onadded } = $props();
+  // householdId: whose Basics; listId: the open list items get added to;
+  // shop: categories (from /api/shop) for the category picker
+  let { householdId, listId, shop, onclose, onadded } = $props();
+
+  let byId = $derived(new Map(shop.categories.map((c) => [c.id, c])));
 
   let basics = $state([]);
   let loading = $state(true);
@@ -19,7 +23,7 @@
 
   // Form for a new Basic ('new') or one being edited (its id); null = closed
   let editing = $state(null);
-  let form = $state({ name: '', default_amount: '', barcode: '' });
+  let form = $state({ name: '', default_amount: '', barcode: '', category_id: null });
   let saving = $state(false);
 
   let shown = $derived.by(() => {
@@ -72,14 +76,21 @@
     picking = null;
     message = '';
     editing = editing === 'new' ? null : 'new';
-    form = { name: search.trim(), default_amount: '', barcode: '' };
+    const name = search.trim();
+    // Pre-select the category this name already has, if any
+    form = { name, default_amount: '', barcode: '', category_id: shop.tags?.[name.toLocaleLowerCase('de')] ?? null };
   }
 
   function startEdit(basic) {
     picking = null;
     message = '';
     editing = basic.id;
-    form = { name: basic.name, default_amount: basic.default_amount ?? '', barcode: basic.barcode ?? '' };
+    form = {
+      name: basic.name,
+      default_amount: basic.default_amount ?? '',
+      barcode: basic.barcode ?? '',
+      category_id: basic.category_id ?? null,
+    };
   }
 
   async function save(event) {
@@ -97,12 +108,19 @@
       const res = await fetch(isNew ? `/api/households/${householdId}/basics` : `/api/basics/${editing}`, {
         method: isNew ? 'POST' : 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: form.name, default_amount: form.default_amount, barcode: barcode || null }),
+        body: JSON.stringify({
+          name: form.name,
+          default_amount: form.default_amount,
+          barcode: barcode || null,
+          category_id: form.category_id,
+        }),
       });
       if (res.status === 409) throw new Error(t('basics.barcodeTaken'));
       if (!res.ok) throw new Error(t('common.notSaved'));
       editing = null;
       await load();
+      // The category is remembered per name, so list items may have moved
+      onadded?.();
     } catch (e) {
       error = e.message;
     } finally {
@@ -132,6 +150,7 @@
       <input type="text" bind:value={form.default_amount} placeholder={t('basics.amount')} maxlength="30" />
       <input type="text" inputmode="numeric" bind:value={form.barcode} placeholder={t('basics.barcode')} maxlength="14" />
     </div>
+    <CategoryPicker {shop} bind:value={form.category_id} />
     <div class="sheet-actions">
       <button type="button" class="ghost" onclick={() => (editing = null)}>{t('common.cancel')}</button>
       <button type="submit" class="btn-primary" disabled={saving || !form.name.trim()}>
@@ -188,7 +207,10 @@
             {:else}
               <div class="row">
                 <button class="pick" onclick={() => pick(basic)}>
-                  <span class="name">{basic.name}</span>
+                  <span class="name">
+                    {#if byId.get(basic.category_id)}<span class="emoji">{byId.get(basic.category_id).emoji ?? ''}</span>{/if}
+                    {basic.name}
+                  </span>
                   {#if basic.default_amount}<span class="amount">{basic.default_amount}</span>{/if}
                 </button>
                 <button class="icon" onclick={() => startEdit(basic)} aria-label={t('common.edit')} title={t('common.edit')}>✏️</button>
@@ -382,6 +404,8 @@
     color: var(--muted);
     font-size: 0.85rem;
   }
+
+  .emoji { margin-right: 4px; }
 
   .icon {
     flex-shrink: 0;

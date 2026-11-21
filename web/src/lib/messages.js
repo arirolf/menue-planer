@@ -352,6 +352,7 @@ export default {
     de: 'Dieser Strichcode gehört schon zu einem Basic',
     en: 'This barcode already belongs to a Basic',
   },
+  'basics.category': { de: 'Kategorie (optional)', en: 'Category (optional)' },
   'basics.howMany': { de: 'Wie viele?', en: 'How many?' },
   'basics.added': { de: '✓ {n}× {name}', en: '✓ {n}× {name}' },
   'basics.loadFailed': { de: 'Basics konnten nicht geladen werden', en: "Couldn't load Basics" },
