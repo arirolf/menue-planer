@@ -15,10 +15,14 @@ gemeinsamer Kalender und Einkaufslisten. Oberfläche auf Deutsch und Englisch.*
 - **Random picks** filtered by time and effort, and by who is eating (everyone can mark
   dishes they don't like).
 - **Calendar** per household for lunch and dinner, shopping trips and notes, with a
-  printable PDF for one week, two weeks or a month.
+  searchable recipe picker and a printable PDF for one week, two weeks or a month.
 - **Shopping lists**: one shared list per household, plus personal lists you can share.
-  Add a recipe's or a whole week's ingredients with one tap, adjust single
-  amounts with +/− before adding them, and tap 🏠 on what you already have at home.
+  Add a recipe's ingredients with one tap, adjust single amounts with +/− before adding
+  them, and tap 🏠 on what you already have at home. "Update shopping list" in the calendar
+  adds every planned meal of a date range you pick, and each meal only once: pressing it
+  again, or after the items were checked off and cleared, adds nothing twice, and it never
+  changes items already on the list. Long-press an item to change its count or add a note
+  ("the big pack").
 - **Sorted like your store**: tag items with a category (vegetables, fruit, meat,
   cheese & dairy, bread, drinks, or your own) and the list groups them in the order you walk through
   the store. Save a different order per store, filter by category, and pin items to
