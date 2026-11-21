@@ -11,6 +11,25 @@
   const isEdit = meal !== null;
 
   let recipeId = $state(meal?.recipe_id ?? '');
+  let search = $state('');
+  let selected = $derived(recipes.find((r) => r.id === Number(recipeId)) ?? null);
+
+  // Same matching as the plan screen: name, notes or an ingredient
+  let results = $derived.by(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return [];
+    return recipes.filter(
+      (r) =>
+        r.name.toLowerCase().includes(q) ||
+        r.notes?.toLowerCase().includes(q) ||
+        r.ingredients?.some((name) => name.toLowerCase().includes(q))
+    );
+  });
+
+  function pickRecipe(r) {
+    recipeId = r.id;
+    search = '';
+  }
   let title = $state(meal && !meal.recipe_id ? (meal.title ?? '') : '');
   let note = $state(meal?.note ?? '');
   let servings = $state(meal?.servings ?? BASE_SERVINGS);
@@ -74,12 +93,38 @@
 
   <div class="field">
     <label class="label" for="recipe">{t('meal.recipe')}</label>
-    <select id="recipe" bind:value={recipeId}>
-      <option value="">{t('meal.noRecipe')}</option>
-      {#each recipes as r (r.id)}
-        <option value={r.id}>{r.name}</option>
-      {/each}
-    </select>
+    {#if selected}
+      <div class="selected">
+        <span>🍽️ {selected.name}</span>
+        <button type="button" class="clear" onclick={() => (recipeId = '')} aria-label={t('meal.clearRecipe')}>✕</button>
+      </div>
+    {:else}
+      <input
+        id="recipe"
+        type="search"
+        autocomplete="off"
+        bind:value={search}
+        placeholder={t('meal.searchRecipe')}
+        onkeydown={(e) => {
+          // Enter picks the only/first match instead of saving the form
+          if (e.key === 'Enter' && results.length) {
+            e.preventDefault();
+            pickRecipe(results[0]);
+          }
+        }}
+      />
+      {#if search.trim()}
+        {#if results.length}
+          <ul class="results">
+            {#each results as r (r.id)}
+              <li><button type="button" onclick={() => pickRecipe(r)}>{r.name}</button></li>
+            {/each}
+          </ul>
+        {:else}
+          <p class="none">{t('meal.noRecipeFound')}</p>
+        {/if}
+      {/if}
+    {/if}
   </div>
 
   {#if recipeId}
@@ -137,4 +182,65 @@
   }
 
   .error { text-align: center; }
+
+  input[type='search'] { width: 100%; }
+
+  .selected {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 52px;
+    padding: 4px 4px 4px 16px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-weight: 600;
+  }
+
+  .selected span { flex: 1; min-width: 0; }
+
+  .clear {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 50%;
+    background: none;
+    color: inherit;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+
+  /* About six rows visible, the rest scrolls */
+  .results {
+    list-style: none;
+    max-height: 312px;
+    overflow-y: auto;
+    margin: 6px 0 0;
+    padding: 0;
+    border: 2px solid var(--tag);
+    border-radius: 14px;
+  }
+
+  .results li + li { border-top: 1px solid var(--tag); }
+
+  .results button {
+    width: 100%;
+    min-height: 52px;
+    padding: 8px 14px;
+    border: none;
+    background: none;
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .results button:hover { background: var(--tag); }
+
+  .none {
+    margin: 8px 4px 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
 </style>
