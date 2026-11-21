@@ -24,6 +24,14 @@ gemeinsamer Kalender und Einkaufslisten. Oberfläche auf Deutsch und Englisch.*
   the store. Save a different order per store, filter by category, and pin items to
   the top. Each item name remembers its category, and you can set it right in the
   recipe, so ingredients arrive on the list already sorted.
+- **Basics and barcode scanner**: each household keeps a list of things it buys
+  regularly (milk, bread, coffee…). Add one to the open shopping list with a tap, or scan
+  the product's barcode right in the list. The first scan of a new product saves it as a
+  Basic (name filled in from [Open Food Facts](https://world.openfoodfacts.org/) when
+  known); later scans just ask "how many?". Adding a Basic that's still on the list
+  raises its count ("2× Milch"). The camera needs HTTPS (or `localhost`); you can always
+  type the code instead. The server looks up unknown barcodes at Open Food Facts, so that
+  needs internet access; everything else works without it.
 - **Installable** on phones as an app (PWA), with your own colors.
 - **Simple accounts**: no sign-up. An admin creates users and households.
 
