@@ -57,13 +57,14 @@ export function getSessionUser(token) {
   if (!token) return null;
   const user = db
     .prepare(`
-      SELECT u.id, u.username, u.language, u.is_admin, u.color_main, u.color_secondary, u.color_frame
+      SELECT u.id, u.username, u.language, u.is_admin, u.color_main, u.color_secondary, u.color_frame,
+             u.open_main_list
       FROM sessions s
       JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = ? AND s.expires_at > ?
     `)
     .get(sha256(token), Date.now());
-  return user ? { ...user, is_admin: user.is_admin === 1 } : null;
+  return user ? { ...user, is_admin: user.is_admin === 1, open_main_list: user.open_main_list === 1 } : null;
 }
 
 export function deleteSession(token) {

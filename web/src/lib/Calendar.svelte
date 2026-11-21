@@ -18,7 +18,8 @@
   } from './dates.js';
 
   const SLOTS = ['lunch', 'dinner'];
-  const EMPTY_DAY = { lunch: null, dinner: null, trips: [] };
+  const MEALS_PER_SLOT = 2;
+  const EMPTY_DAY = { lunch: [], dinner: [], trips: [] };
   const today = todayISO();
 
   let calendars = $state([]);
@@ -103,8 +104,8 @@
   // Group meals and trips by date
   let byDate = $derived.by(() => {
     const map = {};
-    const dayOf = (iso) => (map[iso] ??= { lunch: null, dinner: null, trips: [] });
-    for (const m of meals) dayOf(m.date)[m.slot] = m;
+    const dayOf = (iso) => (map[iso] ??= { lunch: [], dinner: [], trips: [] });
+    for (const m of meals) dayOf(m.date)[m.slot].push(m); // already sorted by position
     for (const t of trips) dayOf(t.date).trips.push(t);
     return map;
   });
@@ -285,8 +286,8 @@
     {#if weekdayLabel}<span class="cell-wd">{weekdayLabel}</span>{/if}
     <span class="cell-day">{fromISO(iso).getDate()}</span>
     <span class="dots">
-      {#if entry.lunch}<span class="dot lunch"></span>{/if}
-      {#if entry.dinner}<span class="dot dinner"></span>{/if}
+      {#each entry.lunch as _}<span class="dot lunch"></span>{/each}
+      {#each entry.dinner as _}<span class="dot dinner"></span>{/each}
       {#if entry.trips.length > 0}<span class="dot trip-dot"></span>{/if}
     </span>
   </button>
@@ -302,23 +303,31 @@
     </header>
 
     {#each SLOTS as slot}
-      {@const meal = entry[slot]}
-      <button class="slot" class:empty={!meal} onclick={() => openMeal(iso, slot, meal)}>
-        <span class="slot-label">{slotLabel(slot)}</span>
-        {#if meal}
-          <span class="slot-body">
-            {#if meal.title}
-              <span class="meal-title">
-                {meal.title}
-                {#if meal.recipe_id}<span class="meal-servings">👥 {meal.servings}</span>{/if}
-              </span>
-            {/if}
-            {#each (meal.note ?? '').split('\n').filter(Boolean) as line}<span class="meal-note">💬 {line}</span>{/each}
-          </span>
-        {:else}
+      {@const slotMeals = entry[slot]}
+      {#if slotMeals.length === 0}
+        <button class="slot empty" onclick={() => openMeal(iso, slot, null)}>
+          <span class="slot-label">{slotLabel(slot)}</span>
           <span class="slot-add">{t('cal.planSlot')}</span>
+        </button>
+      {:else}
+        {#each slotMeals as meal, i (meal.id)}
+          <button class="slot" class:second={i > 0} onclick={() => openMeal(iso, slot, meal)}>
+            <span class="slot-label">{i === 0 ? slotLabel(slot) : ''}</span>
+            <span class="slot-body">
+              {#if meal.title}
+                <span class="meal-title">
+                  {meal.title}
+                  {#if meal.recipe_id}<span class="meal-servings">👥 {meal.servings}</span>{/if}
+                </span>
+              {/if}
+              {#each (meal.note ?? '').split('\n').filter(Boolean) as line}<span class="meal-note">💬 {line}</span>{/each}
+            </span>
+          </button>
+        {/each}
+        {#if slotMeals.length < MEALS_PER_SLOT}
+          <button class="slot-more" onclick={() => openMeal(iso, slot, null)}>{t('cal.planSecond')}</button>
         {/if}
-      </button>
+      {/if}
     {/each}
 
     {#each entry.trips as trip (trip.id)}
@@ -685,6 +694,21 @@
   }
 
   .slot-add { color: var(--muted); }
+
+  /* Second menu in the same slot sits right under the first */
+  .slot.second { margin-top: -4px; }
+
+  .slot-more {
+    display: block;
+    margin: -4px 0 8px auto;
+    padding: 2px 8px;
+    border: none;
+    background: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.82rem;
+    cursor: pointer;
+  }
 
   .trip {
     width: 100%;

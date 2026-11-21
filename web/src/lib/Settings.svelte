@@ -62,6 +62,22 @@
   </section>
 
   <section class="card">
+    <span class="label">{t('settings.shopTab')}</span>
+    <div class="chips">
+      {#each [[false, t('settings.shopOverview')], [true, t('settings.shopMainList')]] as [value, label]}
+        <button
+          class="chip"
+          class:active={user.open_main_list === value}
+          disabled={saving}
+          onclick={() => user.open_main_list !== value && save({ open_main_list: value })}
+        >
+          {label}
+        </button>
+      {/each}
+    </div>
+  </section>
+
+  <section class="card">
     <span class="label section">{t('settings.colors')}</span>
     <ColorPicker
       label={t('settings.mainColor')}

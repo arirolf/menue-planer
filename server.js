@@ -133,6 +133,7 @@ function publicUser(u) {
     color_main: u.color_main ?? null,
     color_secondary: u.color_secondary ?? null,
     color_frame: u.color_frame ?? null,
+    open_main_list: u.open_main_list === 1,
     recipe_checks: RECIPE_CHECKS,
   };
 }
@@ -188,6 +189,13 @@ app.patch('/api/auth/me', (req, res) => {
       return res.status(400).json({ error: `${key} must be like #ff6b35 or null` });
     }
     changes[key] = body[key]?.toLowerCase() ?? null;
+  }
+
+  if (body.open_main_list !== undefined) {
+    if (typeof body.open_main_list !== 'boolean') {
+      return res.status(400).json({ error: 'open_main_list must be true or false' });
+    }
+    changes.open_main_list = body.open_main_list ? 1 : 0;
   }
 
   // Column names come from the fixed list above, never from the request

@@ -84,6 +84,9 @@ export default {
   // ---------- Settings ----------
   'settings.title': { de: '⚙️ Einstellungen', en: '⚙️ Settings' },
   'settings.language': { de: 'Sprache', en: 'Language' },
+  'settings.shopTab': { de: 'Einkaufs-Tab öffnet', en: 'Shopping tab opens' },
+  'settings.shopOverview': { de: '📋 Übersicht aller Listen', en: '📋 Overview of all lists' },
+  'settings.shopMainList': { de: '🏠 Direkt die Hauptliste', en: '🏠 The main list directly' },
   'settings.saved': { de: 'Gespeichert ✓', en: 'Saved ✓' },
   'settings.colors': { de: '🎨 Farben', en: '🎨 Colors' },
   'settings.mainColor': { de: 'Hauptfarbe', en: 'Main color' },
@@ -196,7 +199,7 @@ export default {
 
   'sheet.randomPick': { de: '🎲 Zufallstreffer', en: '🎲 Random pick' },
   'sheet.plan': { de: '📅 Einplanen', en: '📅 Add to calendar' },
-  'sheet.slotTaken': { de: 'Da ist schon etwas geplant 📅', en: 'Something is already planned there 📅' },
+  'sheet.slotTaken': { de: 'Da sind schon 2 Menüs geplant 📅', en: 'There are already 2 menus planned 📅' },
   'sheet.planned': { de: '✓ Eingeplant: {when}', en: '✓ Planned: {when}' },
   'sheet.toList': { de: '🛒 Zutaten auf Liste', en: '🛒 Ingredients to list' },
   'sheet.listDate': { de: '📅 Für wann? (optional)', en: '📅 For when? (optional)' },
@@ -224,6 +227,7 @@ export default {
   'cal.month': { de: 'Monat', en: 'Month' },
   'cal.today': { de: 'Heute', en: 'Today' },
   'cal.planSlot': { de: '+ planen', en: '+ plan' },
+  'cal.planSecond': { de: '+ 2. Menü', en: '+ 2nd menu' },
   'cal.shopping': { de: 'Einkaufen', en: 'Shopping' },
   'cal.addTrip': { de: '+ Einkauf planen', en: '+ Plan shopping' },
   'cal.legendTrip': { de: 'Einkauf', en: 'Shopping' },
@@ -257,8 +261,8 @@ export default {
     en: 'Pick a recipe, write something or add a note',
   },
   'meal.slotTaken': {
-    de: 'Dieser Platz ist an dem Tag schon belegt',
-    en: 'That slot is already taken on this day',
+    de: 'An dem Tag sind da schon 2 Menüs geplant',
+    en: 'There are already 2 menus planned for that slot on this day',
   },
 
   'trip.edit': { de: 'Einkauf bearbeiten', en: 'Edit shopping trip' },

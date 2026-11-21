@@ -44,10 +44,10 @@ function drawDay(doc, entry, dayLabel, x, y, w, h, zoom = 1) {
 
   const rows = [];
   for (const [slot, letter] of [['lunch', t('pdf.lunchLetter')], ['dinner', t('pdf.dinnerLetter')]]) {
-    const meal = entry[slot];
-    if (!meal) continue;
-    rows.push([`${letter}: ${clean(meal.title) || '–'}`, 'bold']);
-    for (const line of noteLines(meal.note)) rows.push([`» ${line}`, 'italic', 6.8]);
+    for (const meal of entry[slot]) {
+      rows.push([`${letter}: ${clean(meal.title) || '–'}`, 'bold']);
+      for (const line of noteLines(meal.note)) rows.push([`» ${line}`, 'italic', 6.8]);
+    }
   }
   for (const trip of entry.trips) {
     rows.push([[t('pdf.tripLetter'), trip.time, clean(trip.list_name)].filter(Boolean).join(' '), 'normal']);
@@ -69,8 +69,8 @@ function createPdf({ calendarName, title, filename, gridStart, weeks, inRange, d
 
   // Group entries by date
   const days = {};
-  const dayOf = (iso) => (days[iso] ??= { lunch: null, dinner: null, trips: [] });
-  for (const m of meals) dayOf(m.date)[m.slot] = m;
+  const dayOf = (iso) => (days[iso] ??= { lunch: [], dinner: [], trips: [] });
+  for (const m of meals) dayOf(m.date)[m.slot].push(m); // already sorted by position
   for (const t of trips) dayOf(t.date).trips.push(t);
 
   // ----- Title -----

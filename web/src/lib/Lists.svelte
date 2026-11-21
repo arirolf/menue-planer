@@ -4,6 +4,9 @@
 
   let { currentUser } = $props();
 
+  // Only the first load after opening the tab jumps to the main list; "back" shows the overview
+  let jumpToMain = currentUser.open_main_list;
+
   let lists = $state([]);
   let loading = $state(true);
   let error = $state('');
@@ -22,6 +25,11 @@
       const res = await fetch('/api/lists');
       if (!res.ok) throw new Error(t('lists.loadFailed'));
       lists = await res.json();
+      if (jumpToMain) {
+        jumpToMain = false;
+        const main = lists.find((l) => l.household_id);
+        if (main) selectedId = main.id;
+      }
     } catch (e) {
       error = e.message;
     } finally {

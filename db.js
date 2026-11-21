@@ -277,3 +277,49 @@ if (!db.prepare('PRAGMA table_info(recipes)').all().some((c) => c.name === 'note
     ALTER TABLE recipes ADD COLUMN checked INTEGER NOT NULL DEFAULT 0 CHECK (checked IN (0, 1));
   `);
 }
+
+// ---------- Two meals per slot ----------
+// meal_plans.position 0 or 1: lunch and dinner can each hold two menus.
+// The UNIQUE constraint can't be changed in place, so the table gets rebuilt once (data is copied).
+if (!db.prepare('PRAGMA table_info(meal_plans)').all().some((c) => c.name === 'position')) {
+  const MEAL_COLUMNS = ['id', 'calendar_id', 'date', 'slot', 'recipe_id', 'title', 'note', 'created_by', 'servings'];
+  const actual = db.prepare('PRAGMA table_info(meal_plans)').all().map((c) => c.name);
+  if (actual.join() !== MEAL_COLUMNS.join()) {
+    throw new Error(`meal_plans has unexpected columns (${actual.join()}), refusing to rebuild`);
+  }
+
+  db.exec('PRAGMA foreign_keys = OFF');
+  try {
+    transaction(() => {
+      db.exec(`
+        CREATE TABLE meal_plans_new (
+          id           INTEGER PRIMARY KEY,
+          calendar_id  INTEGER NOT NULL REFERENCES calendars(id) ON DELETE CASCADE,
+          date         TEXT NOT NULL,
+          slot         TEXT NOT NULL CHECK (slot IN ('lunch', 'dinner')),
+          position     INTEGER NOT NULL DEFAULT 0 CHECK (position IN (0, 1)),
+          recipe_id    INTEGER REFERENCES recipes(id) ON DELETE SET NULL,
+          title        TEXT,
+          note         TEXT,
+          created_by   INTEGER REFERENCES users(id) ON DELETE SET NULL,
+          servings     INTEGER NOT NULL DEFAULT 4,
+          UNIQUE (calendar_id, date, slot, position)
+        );
+        INSERT INTO meal_plans_new (${MEAL_COLUMNS.join(', ')})
+          SELECT ${MEAL_COLUMNS.join(', ')} FROM meal_plans;
+        DROP TABLE meal_plans;
+        ALTER TABLE meal_plans_new RENAME TO meal_plans;
+      `);
+      if (db.prepare('PRAGMA foreign_key_check').all().length > 0) {
+        throw new Error('Broken references after rebuilding meal_plans');
+      }
+    });
+  } finally {
+    db.exec('PRAGMA foreign_keys = ON');
+  }
+}
+
+// ---------- Shopping tab opens the household list directly (per user, off by default) ----------
+if (!db.prepare('PRAGMA table_info(users)').all().some((c) => c.name === 'open_main_list')) {
+  db.exec('ALTER TABLE users ADD COLUMN open_main_list INTEGER NOT NULL DEFAULT 0 CHECK (open_main_list IN (0, 1))');
+}

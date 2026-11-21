@@ -7,6 +7,7 @@ const router = express.Router();
 export const adminRouter = express.Router();
 
 const SLOTS = ['lunch', 'dinner'];
+const MEALS_PER_SLOT = 2;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 const MAX_RANGE_DAYS = 62;
@@ -109,12 +110,16 @@ function validateTrip(body, userId) {
   return { trip: { date, time, listId, note: cleanNote(body.note) } };
 }
 
-function slotTaken(calendarId, date, slot, exceptId = 0) {
-  return Boolean(
+// Each slot holds up to MEALS_PER_SLOT menus. Returns the first free position, or null when full.
+function freePosition(calendarId, date, slot, exceptId = 0) {
+  const taken = new Set(
     db
-      .prepare('SELECT id FROM meal_plans WHERE calendar_id = ? AND date = ? AND slot = ? AND id != ?')
-      .get(calendarId, date, slot, exceptId)
+      .prepare('SELECT position FROM meal_plans WHERE calendar_id = ? AND date = ? AND slot = ? AND id != ?')
+      .all(calendarId, date, slot, exceptId)
+      .map((r) => r.position)
   );
+  for (let p = 0; p < MEALS_PER_SLOT; p++) if (!taken.has(p)) return p;
+  return null;
 }
 
 // Middleware: only household members get in
@@ -157,13 +162,13 @@ router.get('/:id/entries', loadCalendar, (req, res) => {
 
   const meals = db
     .prepare(`
-      SELECT m.id, m.date, m.slot, m.recipe_id, m.note, m.servings,
+      SELECT m.id, m.date, m.slot, m.position, m.recipe_id, m.note, m.servings,
              COALESCE(r.name, m.title) AS title,
              r.time_range, r.difficulty
       FROM meal_plans m
       LEFT JOIN recipes r ON r.id = m.recipe_id
       WHERE m.calendar_id = ? AND m.date BETWEEN ? AND ?
-      ORDER BY m.date, CASE m.slot WHEN 'lunch' THEN 0 ELSE 1 END
+      ORDER BY m.date, CASE m.slot WHEN 'lunch' THEN 0 ELSE 1 END, m.position
     `)
     .all(req.calendar.id, range.from, range.to);
 
@@ -185,17 +190,18 @@ router.get('/:id/entries', loadCalendar, (req, res) => {
 router.post('/:id/meals', loadCalendar, (req, res) => {
   const { meal, error } = validateMeal(req.body);
   if (error) return res.status(400).json({ error });
-  if (slotTaken(req.calendar.id, meal.date, meal.slot)) {
-    return res.status(409).json({ error: 'This slot is already planned' });
+  const position = freePosition(req.calendar.id, meal.date, meal.slot);
+  if (position === null) {
+    return res.status(409).json({ error: 'This slot is already full' });
   }
 
   const r = db
     .prepare(`
-      INSERT INTO meal_plans (calendar_id, date, slot, recipe_id, title, note, servings, created_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO meal_plans (calendar_id, date, slot, position, recipe_id, title, note, servings, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
     .run(
-      req.calendar.id, meal.date, meal.slot, meal.recipeId,
+      req.calendar.id, meal.date, meal.slot, position, meal.recipeId,
       meal.title, meal.note, meal.servings, req.user.id
     );
   res.status(201).json({ id: Number(r.lastInsertRowid) });
@@ -204,21 +210,25 @@ router.post('/:id/meals', loadCalendar, (req, res) => {
 // Edit or move a meal (send all fields)
 router.put('/:id/meals/:mealId', loadCalendar, (req, res) => {
   const mealId = Number(req.params.mealId);
-  const exists = db
-    .prepare('SELECT id FROM meal_plans WHERE id = ? AND calendar_id = ?')
+  const existing = db
+    .prepare('SELECT id, date, slot, position FROM meal_plans WHERE id = ? AND calendar_id = ?')
     .get(mealId, req.calendar.id);
-  if (!exists) return res.status(404).json({ error: 'Meal not found' });
+  if (!existing) return res.status(404).json({ error: 'Meal not found' });
 
   const { meal, error } = validateMeal(req.body);
   if (error) return res.status(400).json({ error });
-  if (slotTaken(req.calendar.id, meal.date, meal.slot, mealId)) {
-    return res.status(409).json({ error: 'This slot is already planned' });
+  // Same day and slot keeps its place; a move takes the first free one there
+  const position = existing.date === meal.date && existing.slot === meal.slot
+    ? existing.position
+    : freePosition(req.calendar.id, meal.date, meal.slot, mealId);
+  if (position === null) {
+    return res.status(409).json({ error: 'This slot is already full' });
   }
 
   db.prepare(`
-    UPDATE meal_plans SET date = ?, slot = ?, recipe_id = ?, title = ?, note = ?, servings = ?
+    UPDATE meal_plans SET date = ?, slot = ?, position = ?, recipe_id = ?, title = ?, note = ?, servings = ?
     WHERE id = ?
-  `).run(meal.date, meal.slot, meal.recipeId, meal.title, meal.note, meal.servings, mealId);
+  `).run(meal.date, meal.slot, position, meal.recipeId, meal.title, meal.note, meal.servings, mealId);
   res.json({ ok: true });
 });
 
@@ -287,7 +297,7 @@ router.post('/:id/to-list', loadCalendar, (req, res) => {
       JOIN recipes r ON r.id = m.recipe_id
       JOIN ingredients i ON i.recipe_id = r.id
       WHERE m.calendar_id = ? AND m.date BETWEEN ? AND ?
-      ORDER BY m.date, CASE m.slot WHEN 'lunch' THEN 0 ELSE 1 END, i.id
+      ORDER BY m.date, CASE m.slot WHEN 'lunch' THEN 0 ELSE 1 END, m.position, i.id
     `)
     .all(req.calendar.id, range.from, range.to);
   const decimal = req.user.language === 'en' ? '.' : ',';
