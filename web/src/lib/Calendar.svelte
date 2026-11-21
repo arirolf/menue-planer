@@ -1,6 +1,7 @@
 <script>
   import MealEditor from './MealEditor.svelte';
   import TripEditor from './TripEditor.svelte';
+  import ListUpdateSheet from './ListUpdateSheet.svelte';
   import { t, i18n } from './i18n.svelte.js';
   import {
     weekdays,
@@ -38,8 +39,7 @@
 
   let editing = $state(null);
 
-  let targetListId = $state(null);
-  let listMessage = $state('');
+  let showListUpdate = $state(false);
   let pdfBusy = $state(false);
 
   // PDF period: 'week1', 'week2' or 'month', remembered on this device
@@ -82,16 +82,6 @@
       : { from: monthCells[0].iso, to: monthCells[41].iso }
   );
 
-  let listRange = $derived(
-    view === 'week'
-      ? { from: weekDays[0], to: weekDays[6], label: t('cal.ingredientsWeek') }
-      : {
-          from: toISO(monthFirst),
-          to: toISO(new Date(monthFirst.getFullYear(), monthFirst.getMonth() + 1, 0)),
-          label: t('cal.ingredientsMonth'),
-        }
-  );
-
   let selectedVisible = $derived(selectedDay >= range.from && selectedDay <= range.to);
 
   let title = $derived.by(() => {
@@ -129,7 +119,6 @@
       if (rRes.ok) recipes = await rRes.json();
       if (lRes.ok) {
         lists = await lRes.json();
-        targetListId = lists[0]?.id ?? null;
       }
     } catch (e) {
       error = e.message;
@@ -164,7 +153,6 @@
   // ---------- Navigation ----------
 
   function move(step) {
-    listMessage = '';
     if (view === 'week') {
       anchor = addDays(anchor, step * 7);
       selectedDay = toISO(addDays(fromISO(selectedDay), step * 7));
@@ -174,14 +162,12 @@
   }
 
   function goToday() {
-    listMessage = '';
     anchor = new Date();
     selectedDay = today;
   }
 
   function setView(newView) {
     if (newView === view) return;
-    listMessage = '';
     // keep the selected day, so switching views stays in the same place
     if (!selectedVisible) selectedDay = toISO(view === 'month' ? monthFirst : weekStart);
     anchor = fromISO(selectedDay);
@@ -205,28 +191,6 @@
   function afterSave() {
     editing = null;
     reload();
-  }
-
-  // ---------- Ingredients onto a list ----------
-
-  async function ingredientsToList() {
-    listMessage = '';
-    try {
-      const res = await fetch(`/api/calendars/${calendarId}/to-list`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ list_id: targetListId, from: listRange.from, to: listRange.to }),
-      });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      const list = lists.find((l) => l.id === targetListId);
-      listMessage =
-        data.added > 0
-          ? t('common.ingredientsAdded', { n: data.added, list: list?.name })
-          : t('cal.noIngredients');
-    } catch {
-      listMessage = t('common.tryAgain');
-    }
   }
 
   // ---------- PDF ----------
@@ -401,18 +365,7 @@
     {/if}
 
     {#if lists.length > 0}
-      <section class="box">
-        <span class="label">{listRange.label}</span>
-        <div class="row">
-          <select bind:value={targetListId}>
-            {#each lists as l (l.id)}
-              <option value={l.id}>{l.household_id ? '🏠' : '📝'} {l.name}</option>
-            {/each}
-          </select>
-          <button class="btn-primary small" onclick={ingredientsToList}>{t('sheet.addToList')}</button>
-        </div>
-        {#if listMessage}<p class="success">{listMessage}</p>{/if}
-      </section>
+      <button class="update-btn" onclick={() => (showListUpdate = true)}>{t('update.open')}</button>
     {/if}
 
     <div class="pdf-row">
@@ -427,6 +380,10 @@
     </div>
   {/if}
 </div>
+
+{#if showListUpdate}
+  <ListUpdateSheet {calendarId} {lists} onclose={() => (showListUpdate = false)} />
+{/if}
 
 {#if editing?.type === 'meal'}
   <MealEditor
@@ -742,29 +699,23 @@
 
   /* ----- Bottom actions ----- */
 
-  .box {
+  .update-btn {
+    display: block;
+    width: 100%;
+    min-height: 56px;
     margin-top: 24px;
-    padding: 16px;
-    background: var(--card);
+    border: none;
     border-radius: 18px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font: inherit;
+    font-size: 1.05rem;
+    font-weight: 700;
     box-shadow: var(--shadow);
+    cursor: pointer;
   }
 
-  .row {
-    display: flex;
-    gap: 8px;
-  }
-
-  .small {
-    flex-shrink: 0;
-    padding: 10px 16px;
-    font-size: 1rem;
-  }
-
-  .box .success {
-    margin: 10px 0 0;
-    text-align: center;
-  }
+  .update-btn:active { transform: scale(0.98); }
 
   .pdf-row {
     display: flex;

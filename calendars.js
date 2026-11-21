@@ -2,6 +2,7 @@ import express from 'express';
 import { db, transaction } from './db.js';
 import { requireAdmin } from './auth.js';
 import { BASE_SERVINGS, amountFor, isValidServings } from './shared/scale.js';
+import { ADD_WINDOW_DAYS, recordAdd } from './recipeAdds.js';
 
 const router = express.Router();
 export const adminRouter = express.Router();
@@ -277,45 +278,105 @@ router.delete('/:id/trips/:tripId', loadCalendar, (req, res) => {
   res.status(204).end();
 });
 
-// ---------- All ingredients of a date range onto a list ----------
+// ---------- Update a list with the meals of a date range ----------
+// Every planned meal's ingredients go onto a list only once (tracked in list_recipe_adds),
+// even after they were checked off and cleared. Existing list items are never changed.
+
+// Validates list_id + from/to from a query or body; returns { error, status } or { listId, from, to }
+function readListRange(req, source) {
+  const range = readRange(source);
+  if (range.error) return { error: range.error, status: 400 };
+  const listId = Number(source?.list_id);
+  if (!Number.isInteger(listId) || !canUseList(req.user.id, listId)) return { error: 'List not found', status: 404 };
+  return { listId, ...range };
+}
+
+// Each meal with a recipe in the range, with what an update would do:
+//   status 'already' – this meal's ingredients are on the list (claim: an unlinked direct add
+//                      of the same recipe, at most 14 days before the meal, gets linked to it)
+//   status 'new'     – its ingredients get added (stale: tracking row of a recipe the meal had before)
+function planListUpdate(calendarId, listId, from, to) {
+  const meals = db
+    .prepare(`
+      SELECT m.id, m.date, m.slot, m.position, m.servings, m.recipe_id, r.name AS recipe_name
+      FROM meal_plans m JOIN recipes r ON r.id = m.recipe_id
+      WHERE m.calendar_id = ? AND m.date BETWEEN ? AND ?
+      ORDER BY m.date, CASE m.slot WHEN 'lunch' THEN 0 ELSE 1 END, m.position
+    `)
+    .all(calendarId, from, to);
+  const tracked = db.prepare('SELECT id, recipe_id FROM list_recipe_adds WHERE list_id = ? AND meal_plan_id = ?');
+  const unlinked = db.prepare(`
+    SELECT id FROM list_recipe_adds
+    WHERE list_id = ? AND recipe_id = ? AND meal_plan_id IS NULL
+      AND created_at >= date(?, '-${ADD_WINDOW_DAYS} days')
+    ORDER BY created_at, id
+  `);
+
+  const claimed = new Set();
+  return meals.map((meal) => {
+    const row = tracked.get(listId, meal.id);
+    // Same recipe as when it was added: done. A changed recipe counts as not added.
+    if (row && row.recipe_id === meal.recipe_id) return { ...meal, status: 'already' };
+    const stale = row?.id ?? null;
+    const claim = unlinked.all(listId, meal.recipe_id, meal.date).find((r) => !claimed.has(r.id));
+    if (claim) {
+      claimed.add(claim.id);
+      return { ...meal, status: 'already', claim: claim.id, stale };
+    }
+    return { ...meal, status: 'new', stale };
+  });
+}
+
+// Read-only: what "update the list" would do for this range
+router.get('/:id/to-list/preview', loadCalendar, (req, res) => {
+  const input = readListRange(req, req.query);
+  if (input.error) return res.status(input.status).json({ error: input.error });
+  const meals = planListUpdate(req.calendar.id, input.listId, input.from, input.to);
+  res.json({
+    meals: meals.map(({ id, date, slot, position, recipe_id, recipe_name, servings, status }) => ({
+      id, date, slot, position, recipe_id, recipe_name, servings, status,
+    })),
+  });
+});
 
 router.post('/:id/to-list', loadCalendar, (req, res) => {
-  const range = readRange(req.body);
-  if (range.error) return res.status(400).json({ error: range.error });
-
-  const listId = Number(req.body?.list_id);
-  if (!Number.isInteger(listId) || !canUseList(req.user.id, listId)) {
-    return res.status(404).json({ error: 'List not found' });
-  }
-
-  // Each meal's ingredients, scaled to how many people eat that meal
-  const rows = db
-    .prepare(`
-      SELECT i.name, i.amount, i.amount_6, i.amount_8,
-             r.id AS recipe_id, r.name AS recipe_name, m.date, m.servings
-      FROM meal_plans m
-      JOIN recipes r ON r.id = m.recipe_id
-      JOIN ingredients i ON i.recipe_id = r.id
-      WHERE m.calendar_id = ? AND m.date BETWEEN ? AND ?
-      ORDER BY m.date, CASE m.slot WHEN 'lunch' THEN 0 ELSE 1 END, m.position, i.id
-    `)
-    .all(req.calendar.id, range.from, range.to);
+  const input = readListRange(req, req.body);
+  if (input.error) return res.status(input.status).json({ error: input.error });
   const decimal = req.user.language === 'en' ? '.' : ',';
 
-  const insert = db.prepare(`
+  const ingredients = db.prepare('SELECT name, amount, amount_6, amount_8 FROM ingredients WHERE recipe_id = ? ORDER BY id');
+  const insertItem = db.prepare(`
     INSERT INTO list_items
       (list_id, name, amount, added_by, recipe_id, recipe_name, planned_date, servings)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
-  transaction(() => {
-    for (const row of rows) {
-      insert.run(
-        listId, row.name, amountFor(row, row.servings, { decimal }), req.user.id,
-        row.recipe_id, row.recipe_name, row.date, row.servings
-      );
+  const dropRow = db.prepare('DELETE FROM list_recipe_adds WHERE id = ?');
+  const claimRow = db.prepare('UPDATE list_recipe_adds SET meal_plan_id = ? WHERE id = ?');
+
+  const result = transaction(() => {
+    const counts = { added_meals: 0, skipped_meals: 0, added_items: 0 };
+    for (const meal of planListUpdate(req.calendar.id, input.listId, input.from, input.to)) {
+      // The meal's recipe changed since it was added: forget the old link (one row per meal)
+      if (meal.stale) dropRow.run(meal.stale);
+      if (meal.status === 'already') {
+        if (meal.claim) claimRow.run(meal.id, meal.claim);
+        counts.skipped_meals++;
+        continue;
+      }
+      // Ingredients scaled to how many people eat that meal
+      for (const ing of ingredients.all(meal.recipe_id)) {
+        insertItem.run(
+          input.listId, ing.name, amountFor(ing, meal.servings, { decimal }), req.user.id,
+          meal.recipe_id, meal.recipe_name, meal.date, meal.servings
+        );
+        counts.added_items++;
+      }
+      recordAdd({ listId: input.listId, recipeId: meal.recipe_id, mealId: meal.id, userId: req.user.id });
+      counts.added_meals++;
     }
+    return counts;
   });
-  res.status(201).json({ added: rows.length });
+  res.json(result);
 });
 
 // ---------- Admin: create and manage calendars ----------
