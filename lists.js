@@ -83,7 +83,7 @@ router.get('/:id', loadList, (req, res) => {
   const tags = tagMap();
   list.items = db
     .prepare(`
-      SELECT id, name, amount, checked, pinned, recipe_name, planned_date, servings
+      SELECT id, name, amount, checked, pinned, recipe_name, planned_date, servings, basic_id, quantity
       FROM list_items WHERE list_id = ? ORDER BY checked, id
     `)
     .all(list.id)

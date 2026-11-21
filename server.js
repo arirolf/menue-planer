@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 import { db, transaction } from './db.js';
 import listsRouter, { validUserIds } from './lists.js';
 import shopRouter, { nameKey, setTag, tagMap } from './shop.js';
+import basicsRouter from './basics.js';
 import calendarsRouter, { adminRouter as adminCalendarsRouter } from './calendars.js';
 import { PRESET_SERVINGS } from './shared/scale.js';
 import {
@@ -220,6 +221,7 @@ app.get('/api/users', (req, res) => {
 // All shopping list routes live in lists.js
 app.use('/api/lists', listsRouter);
 app.use('/api', shopRouter);
+app.use('/api', basicsRouter);
 app.use('/api/calendars', calendarsRouter);
 app.use('/api/admin/calendars', adminCalendarsRouter);
 

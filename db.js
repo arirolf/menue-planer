@@ -323,3 +323,27 @@ if (!db.prepare('PRAGMA table_info(meal_plans)').all().some((c) => c.name === 'p
 if (!db.prepare('PRAGMA table_info(users)').all().some((c) => c.name === 'open_main_list')) {
   db.exec('ALTER TABLE users ADD COLUMN open_main_list INTEGER NOT NULL DEFAULT 0 CHECK (open_main_list IN (0, 1))');
 }
+
+// ---------- Basics: things a household buys regularly, optionally with a barcode ----------
+// Shared by all members of a household. UNIQUE allows several NULL barcodes.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS basics (
+    id              INTEGER PRIMARY KEY,
+    household_id    INTEGER NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+    name            TEXT NOT NULL,
+    default_amount  TEXT,
+    barcode         TEXT,
+    times_added     INTEGER NOT NULL DEFAULT 0,
+    created_by      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at      TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (household_id, barcode)
+  );
+`);
+// list_items.basic_id: which Basic an item came from (adding it again raises quantity).
+// quantity: "2× Milch"; existing items stay at 1.
+if (!db.prepare('PRAGMA table_info(list_items)').all().some((c) => c.name === 'basic_id')) {
+  db.exec(`
+    ALTER TABLE list_items ADD COLUMN basic_id INTEGER REFERENCES basics(id) ON DELETE SET NULL;
+    ALTER TABLE list_items ADD COLUMN quantity INTEGER NOT NULL DEFAULT 1;
+  `);
+}
