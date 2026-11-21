@@ -342,6 +342,8 @@ export default {
     en: 'No Basics yet. Add things you buy often, or scan a product.',
   },
   'basics.noMatch': { de: 'Nichts gefunden', en: 'Nothing found' },
+  'basics.createFromSearch': { de: '+ „{name}“ als Basic anlegen', en: '+ Add "{name}" as a Basic' },
+  'basics.count': { de: '{n} Basics', en: '{n} Basics' },
   'basics.name': { de: 'Name', en: 'Name' },
   'basics.amount': { de: 'Menge (optional)', en: 'Amount (optional)' },
   'basics.barcode': { de: 'Strichcode (optional)', en: 'Barcode (optional)' },

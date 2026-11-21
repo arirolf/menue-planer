@@ -143,60 +143,90 @@
 
 <button class="backdrop" aria-label={t('common.close')} onclick={onclose} transition:fade={{ duration: 150 }}></button>
 
-<div class="sheet" role="dialog" aria-modal="true" transition:fly={{ y: 300, duration: 250 }}>
-  <div class="head">
-    <h2>{t('basics.title')}</h2>
-    <button class="ghost" onclick={startNew}>{t('basics.new')}</button>
+<div class="sheet tall" role="dialog" aria-modal="true" transition:fly={{ y: 300, duration: 250 }}>
+  <!-- Fixed top: title, search, new form, messages -->
+  <div class="top">
+    <div class="head">
+      <h2>
+        {t('basics.title')}
+        {#if basics.length}<span class="count">{basics.length}</span>{/if}
+      </h2>
+      <button class="new-btn" class:active={editing === 'new'} onclick={startNew}>{t('basics.new')}</button>
+    </div>
+
+    <div class="search">
+      <span class="search-icon" aria-hidden="true">🔍</span>
+      <input type="search" bind:value={search} placeholder={t('basics.search')} aria-label={t('basics.search')} />
+      {#if search}
+        <button class="clear" onclick={() => (search = '')} aria-label={t('common.close')}>✕</button>
+      {/if}
+    </div>
+
+    {#if editing === 'new'}{@render basicForm()}{/if}
+
+    {#if message}<p class="success">{message}</p>{/if}
+    {#if error}<p class="error">{error}</p>{/if}
   </div>
 
-  {#if editing === 'new'}{@render basicForm()}{/if}
-
-  <input type="search" class="search" bind:value={search} placeholder={t('basics.search')} />
-
-  {#if message}<p class="success">{message}</p>{/if}
-  {#if error}<p class="error">{error}</p>{/if}
-
-  {#if loading}
-    <p class="muted">{t('common.loading')}</p>
-  {:else if basics.length === 0}
-    <p class="muted">{t('basics.none')}</p>
-  {:else if shown.length === 0}
-    <p class="muted">{t('basics.noMatch')}</p>
-  {:else}
-    <ul class="rows">
-      {#each shown as basic (basic.id)}
-        <li>
-          {#if editing === basic.id}
-            {@render basicForm()}
-          {:else}
-            <div class="row">
-              <button class="pick" class:active={picking?.id === basic.id} onclick={() => pick(basic)}>
-                <span class="name">{basic.name}</span>
-                {#if basic.default_amount}<span class="amount">{basic.default_amount}</span>{/if}
-                {#if basic.barcode}<span class="amount" aria-hidden="true">▮▯▮</span>{/if}
-              </button>
-              <button class="icon" onclick={() => startEdit(basic)} aria-label={t('common.edit')} title={t('common.edit')}>✏️</button>
-              <button class="icon" onclick={() => remove(basic)} aria-label={t('common.delete')} title={t('common.delete')}>🗑️</button>
-            </div>
-            {#if picking?.id === basic.id}
-              <div class="quantity">
-                <span class="label">{t('basics.howMany')}</span>
-                <QuantityStepper bind:value={quantity} />
-                <button class="btn-primary add" onclick={add} disabled={adding}>{t('common.add')}</button>
+  <!-- Only this part scrolls -->
+  <div class="scroll">
+    {#if loading}
+      <p class="muted">{t('common.loading')}</p>
+    {:else if basics.length === 0}
+      <p class="muted">{t('basics.none')}</p>
+    {:else if shown.length === 0}
+      <p class="muted">{t('basics.noMatch')}</p>
+      {#if editing !== 'new'}
+        <button class="create" onclick={startNew}>{t('basics.createFromSearch', { name: search.trim() })}</button>
+      {/if}
+    {:else}
+      <ul class="rows">
+        {#each shown as basic (basic.id)}
+          <li class:open={picking?.id === basic.id || editing === basic.id}>
+            {#if editing === basic.id}
+              {@render basicForm()}
+            {:else}
+              <div class="row">
+                <button class="pick" onclick={() => pick(basic)}>
+                  <span class="name">{basic.name}</span>
+                  {#if basic.default_amount}<span class="amount">{basic.default_amount}</span>{/if}
+                </button>
+                <button class="icon" onclick={() => startEdit(basic)} aria-label={t('common.edit')} title={t('common.edit')}>✏️</button>
+                <button class="icon" onclick={() => remove(basic)} aria-label={t('common.delete')} title={t('common.delete')}>🗑️</button>
               </div>
+              {#if picking?.id === basic.id}
+                <div class="quantity">
+                  <span class="label">{t('basics.howMany')}</span>
+                  <QuantityStepper bind:value={quantity} />
+                  <button class="btn-primary add" onclick={add} disabled={adding}>{t('common.add')}</button>
+                </div>
+              {/if}
             {/if}
-          {/if}
-        </li>
-      {/each}
-    </ul>
-  {/if}
+          </li>
+        {/each}
+      </ul>
+    {/if}
+  </div>
 
-  <div class="sheet-actions">
-    <button class="btn-primary" onclick={onclose}>{t('common.done')}</button>
+  <div class="bottom">
+    <button class="btn-primary done" onclick={onclose}>{t('common.done')}</button>
   </div>
 </div>
 
 <style>
+  /* Taller than the other sheets: fixed top and bottom, the list scrolls in between */
+  .sheet.tall {
+    display: flex;
+    flex-direction: column;
+    height: 80vh;
+    height: 80dvh;
+    max-height: none;
+    overflow: hidden;
+    padding-top: 20px;
+  }
+
+  .top { flex-shrink: 0; }
+
   .head {
     display: flex;
     justify-content: space-between;
@@ -204,15 +234,95 @@
     margin-bottom: 14px;
   }
 
-  .head .ghost { min-height: 48px; }
+  .head h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+  }
 
-  .search { width: 100%; margin-bottom: 12px; }
+  .count {
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: var(--tag);
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .new-btn {
+    min-height: 48px;
+    padding: 0 18px;
+    border: none;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .new-btn.active { opacity: 0.7; }
+
+  .search {
+    position: relative;
+    margin-bottom: 12px;
+  }
+
+  .search input {
+    width: 100%;
+    min-height: 52px;
+    padding-left: 44px;
+    padding-right: 44px;
+    font-size: 1.05rem;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  .clear {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 44px;
+    height: 44px;
+    border: none;
+    background: none;
+    color: var(--muted);
+    font-size: 1rem;
+    cursor: pointer;
+  }
+
+  .scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    margin: 0 -20px;
+    padding: 0 20px;
+  }
+
+  .bottom {
+    flex-shrink: 0;
+    padding-top: 12px;
+  }
+
+  .done { width: 100%; min-height: 52px; }
 
   .basic-form {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    padding: 12px 0;
+    padding: 12px;
+    margin-bottom: 12px;
+    border-radius: 16px;
+    background: var(--bg);
   }
 
   .form-row { display: flex; gap: 8px; }
@@ -221,28 +331,39 @@
   .rows {
     list-style: none;
     padding: 0;
-    margin: 0 0 12px;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
 
-  .rows li { border-bottom: 1px solid var(--tag); }
-  .rows li:last-child { border-bottom: none; }
+  .rows li {
+    border: 2px solid var(--tag);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+
+  .rows li.open { border-color: var(--accent); }
+  .rows li .basic-form { margin: 0; border-radius: 0; }
 
   .row {
     display: flex;
     align-items: center;
-    gap: 4px;
+    padding-right: 4px;
   }
 
   .pick {
     flex: 1;
     min-width: 0;
-    min-height: 56px;
+    min-height: 60px;
     display: flex;
-    align-items: baseline;
-    gap: 8px;
-    padding: 8px 10px;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 8px 14px;
     border: none;
-    border-radius: 12px;
     background: none;
     color: var(--text);
     font: inherit;
@@ -250,14 +371,16 @@
     cursor: pointer;
   }
 
-  .pick:hover,
-  .pick.active { background: var(--tag); }
+  .pick:hover { background: var(--tag); }
 
-  .name { font-weight: 600; }
+  .name {
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
 
   .amount {
     color: var(--muted);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
   }
 
   .icon {
@@ -269,7 +392,7 @@
     background: none;
     font-size: 1.1rem;
     cursor: pointer;
-    opacity: 0.6;
+    opacity: 0.55;
   }
 
   .icon:hover { background: var(--tag); opacity: 1; }
@@ -279,13 +402,26 @@
     flex-direction: column;
     align-items: center;
     gap: 12px;
-    padding: 8px 0 16px;
+    padding: 4px 14px 16px;
   }
 
   .quantity .label { margin: 0; }
   .quantity .add { width: 100%; min-height: 56px; }
 
+  .create {
+    display: block;
+    width: 100%;
+    min-height: 52px;
+    border: 2px dashed var(--accent);
+    border-radius: 16px;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
   .muted { color: var(--muted); text-align: center; }
   .success,
-  .error { text-align: center; }
+  .error { text-align: center; margin: 0 0 10px; }
 </style>
