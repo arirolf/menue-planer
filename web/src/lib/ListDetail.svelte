@@ -4,6 +4,7 @@
   import { categoryName, categoryOrder } from './categories.js';
   import SortPanel from './SortPanel.svelte';
   import BasicsSheet from './BasicsSheet.svelte';
+  import ScannerSheet from './ScannerSheet.svelte';
   let { id, currentUser, onback } = $props();
 
   let list = $state(null);
@@ -66,6 +67,7 @@
   let households = $state(null);
   let pickedHousehold = $state(readPicked());
   let showBasics = $state(false);
+  let showScanner = $state(false);
   let basicsHousehold = $derived.by(() => {
     if (list?.household_id) return list.household_id;
     if (!households?.length) return null;
@@ -427,6 +429,7 @@
           </label>
         {/if}
         <div class="quick">
+          <button class="quick-btn" onclick={() => (showScanner = true)}>{t('scan.open')}</button>
           <button class="quick-btn" onclick={() => (showBasics = true)}>{t('basics.open')}</button>
         </div>
       {:else}
@@ -559,6 +562,10 @@
     {/if}
   {/if}
 </div>
+
+{#if showScanner && basicsHousehold}
+  <ScannerSheet householdId={basicsHousehold} listId={id} onclose={() => (showScanner = false)} onadded={refreshItems} />
+{/if}
 
 {#if showBasics && basicsHousehold}
   <BasicsSheet householdId={basicsHousehold} listId={id} onclose={() => (showBasics = false)} onadded={refreshItems} />
