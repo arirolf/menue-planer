@@ -3,6 +3,7 @@
   import { formatShort } from './dates.js';
   import { categoryName, categoryOrder } from './categories.js';
   import SortPanel from './SortPanel.svelte';
+  import BasicsSheet from './BasicsSheet.svelte';
   let { id, currentUser, onback } = $props();
 
   let list = $state(null);
@@ -58,6 +59,45 @@
   let hasUntagged = $derived(open.some((i) => !byId.has(i.category_id)));
   let done = $derived(list ? list.items.filter((i) => i.checked) : []);
   let otherUsers = $derived(allUsers.filter((u) => u.id !== currentUser.id));
+
+  // Whose Basics to show: a household list uses its household, a personal list
+  // the user's own household (picked and remembered if there are several)
+  const HOUSEHOLD_KEY = 'basicsHousehold';
+  let households = $state(null);
+  let pickedHousehold = $state(readPicked());
+  let showBasics = $state(false);
+  let basicsHousehold = $derived.by(() => {
+    if (list?.household_id) return list.household_id;
+    if (!households?.length) return null;
+    return households.find((h) => h.id === pickedHousehold)?.id ?? households[0].id;
+  });
+  let showHouseholdPicker = $derived(Boolean(list && !list.household_id && households?.length > 1));
+
+  function readPicked() {
+    try {
+      return Number(localStorage.getItem(HOUSEHOLD_KEY)) || null;
+    } catch {
+      return null;
+    }
+  }
+
+  function pickHousehold(id) {
+    pickedHousehold = id;
+    try {
+      localStorage.setItem(HOUSEHOLD_KEY, String(id));
+    } catch {
+      // private mode: just not remembered
+    }
+  }
+
+  async function loadHouseholds() {
+    try {
+      const res = await fetch('/api/households');
+      if (res.ok) households = await res.json();
+    } catch {
+      // Basics buttons stay hidden
+    }
+  }
 
   // Small helper so every request doesn't need the same 10 lines
   async function api(path, method, body) {
@@ -268,6 +308,7 @@
 
   load();
   loadShop();
+  loadHouseholds();
 </script>
 
 <!-- Where an item came from: recipe, which day, how many people -->
@@ -372,6 +413,26 @@
       <input type="text" bind:value={newName} placeholder={t('list.whatsMissing')} />
       <button type="submit" class="add-btn" aria-label={t('common.add')}>+</button>
     </form>
+
+    {#if households !== null}
+      {#if basicsHousehold}
+        {#if showHouseholdPicker}
+          <label class="household-pick">
+            <span>{t('basics.household')}</span>
+            <select value={basicsHousehold} onchange={(e) => pickHousehold(Number(e.currentTarget.value))}>
+              {#each households as h (h.id)}
+                <option value={h.id}>{h.name}</option>
+              {/each}
+            </select>
+          </label>
+        {/if}
+        <div class="quick">
+          <button class="quick-btn" onclick={() => (showBasics = true)}>{t('basics.open')}</button>
+        </div>
+      {:else}
+        <p class="hint">{t('basics.noHousehold')}</p>
+      {/if}
+    {/if}
 
     {#if error}<p class="error">{error}</p>{/if}
 
@@ -499,6 +560,10 @@
   {/if}
 </div>
 
+{#if showBasics && basicsHousehold}
+  <BasicsSheet householdId={basicsHousehold} listId={id} onclose={() => (showBasics = false)} onadded={refreshItems} />
+{/if}
+
 <style>
   .topline {
     display: flex;
@@ -578,6 +643,45 @@
   }
 
   .add-row .amount { width: 90px; flex-shrink: 0; }
+
+  .household-pick {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: -8px 0 10px;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  .household-pick select { flex: 1; min-width: 0; }
+
+  .quick {
+    display: flex;
+    gap: 8px;
+    margin: -8px 0 20px;
+  }
+
+  .quick-btn {
+    flex: 1;
+    min-height: 52px;
+    border: 2px solid var(--tag);
+    border-radius: 14px;
+    background: var(--card);
+    color: var(--text);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .quick-btn:hover { border-color: var(--accent); }
+  .quick-btn:active { transform: scale(0.98); }
+
+  .hint {
+    margin: -8px 0 20px;
+    color: var(--muted);
+    font-size: 0.85rem;
+    text-align: center;
+  }
 
   .add-btn {
     flex-shrink: 0;

@@ -327,6 +327,35 @@ export default {
   'list.unpin': { de: 'Nicht mehr anheften', en: 'Unpin' },
   'list.setCategory': { de: 'Kategorie wählen', en: 'Choose category' },
 
+  // ---------- Basics (things bought regularly, per household) ----------
+  'basics.open': { de: '🔁 Basics', en: '🔁 Basics' },
+  'basics.title': { de: 'Basics', en: 'Basics' },
+  'basics.noHousehold': {
+    de: 'Basics und Scanner gibt es, sobald du in einem Haushalt bist.',
+    en: 'Basics and the scanner are available once you are in a household.',
+  },
+  'basics.household': { de: 'Basics von', en: 'Basics from' },
+  'basics.search': { de: 'Suchen…', en: 'Search…' },
+  'basics.new': { de: '+ Neu', en: '+ New' },
+  'basics.none': {
+    de: 'Noch keine Basics. Lege Dinge an, die ihr oft kauft, oder scanne ein Produkt.',
+    en: 'No Basics yet. Add things you buy often, or scan a product.',
+  },
+  'basics.noMatch': { de: 'Nichts gefunden', en: 'Nothing found' },
+  'basics.name': { de: 'Name', en: 'Name' },
+  'basics.amount': { de: 'Menge (optional)', en: 'Amount (optional)' },
+  'basics.barcode': { de: 'Strichcode (optional)', en: 'Barcode (optional)' },
+  'basics.barcodeInvalid': { de: 'Strichcode: 6–14 Ziffern', en: 'Barcode: 6–14 digits' },
+  'basics.barcodeTaken': {
+    de: 'Dieser Strichcode gehört schon zu einem Basic',
+    en: 'This barcode already belongs to a Basic',
+  },
+  'basics.howMany': { de: 'Wie viele?', en: 'How many?' },
+  'basics.added': { de: '✓ {n}× {name}', en: '✓ {n}× {name}' },
+  'basics.loadFailed': { de: 'Basics konnten nicht geladen werden', en: "Couldn't load Basics" },
+  'stepper.less': { de: 'Weniger', en: 'Less' },
+  'stepper.more': { de: 'Mehr', en: 'More' },
+
   // ---------- Item categories and store order ----------
   'cat.vegetables': { de: 'Gemüse', en: 'Vegetables' },
   'cat.fruit': { de: 'Obst', en: 'Fruit' },
