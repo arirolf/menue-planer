@@ -6,8 +6,10 @@
   // householdId: whose Basics; listId: the open list items get added to
   let { householdId, listId, onclose, onadded } = $props();
 
-  // 'manual' (type in a code) → 'busy' → 'quantity' (known Basic) | 'new' (unknown code)
-  let view = $state('manual');
+  // 'camera' | 'manual' (type in a code) → 'busy' → 'quantity' (known Basic) | 'new' (unknown code)
+  // mode: where to go back to after each product
+  let mode = $state('camera');
+  let view = $state('camera');
   let code = $state('');
   let error = $state('');
   let message = $state('');
@@ -21,6 +23,58 @@
 
   const BARCODE = /^\d{6,14}$/;
 
+  let video = $state(null);
+  let starting = $state(false);
+  // Why the camera isn't available: 'insecure' | 'denied' | 'nocamera' | 'failed'
+  let cameraProblem = $state('');
+  const PROBLEM_TEXT = {
+    insecure: 'scan.insecure',
+    denied: 'scan.cameraDenied',
+    nocamera: 'scan.noCamera',
+    failed: 'scan.cameraFailed',
+  };
+
+  // The camera runs only while the camera view is shown; leaving it (code found,
+  // switch to typing, "Fertig") stops all tracks
+  $effect(() => {
+    if (view !== 'camera' || !video) return;
+    const el = video;
+    let stop = null;
+    let cancelled = false;
+    starting = true;
+    import('./scanner.js')
+      .then(({ startScanner }) => startScanner(el, (found) => lookup(found)))
+      .then((stopFn) => {
+        if (cancelled) stopFn();
+        else stop = stopFn;
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        cameraProblem = e?.kind ?? 'failed';
+        mode = 'manual';
+        view = 'manual';
+      })
+      .finally(() => {
+        if (!cancelled) starting = false;
+      });
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  });
+
+  function useCamera() {
+    cameraProblem = '';
+    error = '';
+    mode = 'camera';
+    view = 'camera';
+  }
+
+  function typeCode() {
+    mode = 'manual';
+    view = 'manual';
+  }
+
   async function getJson(url, options) {
     const res = await fetch(url, options);
     return { status: res.status, data: await res.json().catch(() => null) };
@@ -30,7 +84,7 @@
   function next() {
     found = null;
     code = '';
-    view = 'manual';
+    view = mode;
   }
 
   async function lookup(raw) {
@@ -57,7 +111,7 @@
       view = 'new';
     } catch {
       error = t('scan.offline');
-      view = 'manual';
+      view = mode;
     }
   }
 
@@ -133,7 +187,16 @@
   {#if message}<p class="success">{message}</p>{/if}
   {#if error}<p class="error">{error}</p>{/if}
 
-  {#if view === 'manual'}
+  {#if view === 'camera'}
+    <div class="camera">
+      <!-- svelte-ignore a11y_media_has_caption -->
+      <video bind:this={video} playsinline muted></video>
+      <div class="frame" aria-hidden="true"></div>
+      <p class="camera-hint">{starting ? t('scan.starting') : t('scan.pointCamera')}</p>
+    </div>
+    <button class="link" onclick={typeCode}>⌨️ {t('scan.typeCode')}</button>
+  {:else if view === 'manual'}
+    {#if cameraProblem}<p class="problem">{t(PROBLEM_TEXT[cameraProblem])}</p>{/if}
     <form class="manual" onsubmit={(e) => { e.preventDefault(); lookup(code); }}>
       <input
         type="text"
@@ -145,6 +208,9 @@
       />
       <button type="submit" class="btn-primary" disabled={!code.trim()}>{t('scan.check')}</button>
     </form>
+    {#if cameraProblem !== 'insecure'}
+      <button class="link" onclick={useCamera}>{t('scan.useCamera')}</button>
+    {/if}
   {:else if view === 'busy'}
     <p class="muted">{t('scan.looking')}</p>
   {:else if view === 'quantity'}
@@ -191,6 +257,67 @@
 
   .manual input { flex: 1; min-width: 0; font-size: 1.2rem; letter-spacing: 0.05em; }
   .manual .btn-primary { min-height: 48px; }
+
+  .camera {
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 4 / 3;
+    margin-bottom: 8px;
+    border-radius: 16px;
+    background: #000;
+  }
+
+  video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* Scan frame: a wide box in the middle, the rest dimmed */
+  .frame {
+    position: absolute;
+    left: 12%;
+    right: 12%;
+    top: 30%;
+    bottom: 30%;
+    border: 3px solid var(--accent);
+    border-radius: 12px;
+    box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.35);
+  }
+
+  .camera-hint {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 8px;
+    margin: 0;
+    color: #fff;
+    font-size: 0.9rem;
+    text-align: center;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  }
+
+  .link {
+    display: block;
+    width: 100%;
+    min-height: 48px;
+    margin-bottom: 12px;
+    border: none;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .problem {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: var(--tag);
+    font-size: 0.9rem;
+  }
 
   .quantity,
   .new {
